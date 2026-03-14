@@ -374,6 +374,31 @@
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* 一時保存バー */
+  .draft-bar {
+    background: #fffbeb;
+    border-bottom: 2px solid #f59e0b;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 700;
+    color: #92400e;
+  }
+  .draft-actions { display: flex; gap: 8px; }
+  .draft-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .draft-btn.restore { background: #f59e0b; color: white; }
+  .draft-btn.discard { background: #e5e7eb; color: #374151; }
+
   /* 非表示 */
   .hidden { display: none !important; }
 </style>
@@ -392,6 +417,15 @@
 <div class="tabs">
   <div class="tab active" onclick="switchTab('work')">👷 作業ログ</div>
   <div class="tab" onclick="switchTab('sale')">🚚 出荷データ</div>
+</div>
+
+<!-- 一時保存バー -->
+<div id="draftBar" class="draft-bar hidden">
+  <span id="draftMsg">📝 下書きあり</span>
+  <div class="draft-actions">
+    <button onclick="loadDraft()" class="draft-btn restore">復元する</button>
+    <button onclick="clearDraft()" class="draft-btn discard">破棄</button>
+  </div>
 </div>
 
 <!-- トースト -->
@@ -499,10 +533,15 @@
 
 <!-- 送信ボタン -->
 <div class="submit-area">
-  <button class="submit-btn" onclick="submit()">
-    <span>💾</span>
-    <span id="submitLabel">日報を登録する</span>
-  </button>
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button onclick="saveDraft()" style="flex:1;padding:10px;border:1.5px solid var(--green-mid);border-radius:10px;background:var(--green-pale);color:var(--green);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">
+      📝 一時保存
+    </button>
+    <button class="submit-btn" onclick="submit()" style="flex:2">
+      <span>💾</span>
+      <span id="submitLabel">日報を登録する</span>
+    </button>
+  </div>
 </div>
 
 <script>
@@ -553,6 +592,8 @@ async function init() {
   // 出荷: 5行固定で初期化
   sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
   renderSales();
+  // 下書き確認
+  checkDraft();
 }
 
 // ============================================================
@@ -721,6 +762,101 @@ function toggleAlert(btn, val) {
 }
 
 // ============================================================
+// 一時保存（localStorage）
+// ============================================================
+const DRAFT_KEY_WORK = 'aoyagi_draft_work';
+const DRAFT_KEY_SALE = 'aoyagi_draft_sale';
+
+function saveDraft() {
+  try {
+    const workDraft = {
+      date:     document.getElementById('workDate').value,
+      weather:  document.getElementById('weather').value,
+      temp:     tempVal,
+      wind:     windVal,
+      feeling:  feeling,
+      alerts:   Array.from(alertSelected),
+      alertText: document.getElementById('alertText').value,
+      entries:  entries,
+      savedAt:  new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}),
+    };
+    const saleDraft = {
+      date:  document.getElementById('saleDate').value,
+      sales: sales,
+      memo:  document.getElementById('saleMemo').value,
+    };
+    localStorage.setItem(DRAFT_KEY_WORK, JSON.stringify(workDraft));
+    localStorage.setItem(DRAFT_KEY_SALE, JSON.stringify(saleDraft));
+    showToast(`💾 ${workDraft.savedAt} に一時保存しました`);
+  } catch(e) {
+    showToast('❌ 保存に失敗しました');
+  }
+}
+
+function loadDraft() {
+  try {
+    if (currentTab === 'work') {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY_WORK) || 'null');
+      if (!d) return;
+      document.getElementById('workDate').value = d.date || '';
+      document.getElementById('weather').value  = d.weather || '晴れ';
+      tempVal = d.temp ?? 15; document.getElementById('tempVal').textContent = tempVal;
+      windVal = d.wind ?? 3;  document.getElementById('windVal').textContent = windVal;
+      // 体感
+      feeling = d.feeling || '普通';
+      document.querySelectorAll('.feel-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent.includes(feeling));
+      });
+      // 異常連絡
+      alertSelected.clear();
+      (d.alerts || []).forEach(v => alertSelected.add(v));
+      document.querySelectorAll('.alert-btn').forEach(b => {
+        const label = b.textContent.trim().replace(/^.*?\s/,'');
+        b.classList.toggle('active', alertSelected.has(label));
+      });
+      document.getElementById('alertText').value = d.alertText || '';
+      // 作業エントリー
+      entries = d.entries || [];
+      if (entries.length === 0) addEntry();
+      else renderEntries();
+      showToast('✅ 下書きを復元しました');
+    } else {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY_SALE) || 'null');
+      if (!d) return;
+      document.getElementById('saleDate').value = d.date || '';
+      sales = d.sales || SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+      renderSales();
+      document.getElementById('saleMemo').value = d.memo || '';
+      showToast('✅ 下書きを復元しました');
+    }
+    document.getElementById('draftBar').classList.add('hidden');
+  } catch(e) {
+    showToast('❌ 復元に失敗しました: ' + e.message);
+  }
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY_WORK);
+  localStorage.removeItem(DRAFT_KEY_SALE);
+  document.getElementById('draftBar').classList.add('hidden');
+  showToast('🗑 下書きを破棄しました');
+}
+
+function checkDraft() {
+  const w = localStorage.getItem(DRAFT_KEY_WORK);
+  const s = localStorage.getItem(DRAFT_KEY_SALE);
+  if (!w && !s) return;
+  try {
+    const d = JSON.parse(w || 'null');
+    const savedAt = d?.savedAt || '';
+    const bar = document.getElementById('draftBar');
+    document.getElementById('draftMsg').textContent =
+      `💾 下書きあり${savedAt ? '（' + savedAt + ' 保存）' : ''}`;
+    bar.classList.remove('hidden');
+  } catch(e) {}
+}
+
+// ============================================================
 // GAS連携送信
 // ============================================================
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
@@ -787,26 +923,26 @@ async function submit() {
       };
     }
 
-    // GASに送信（no-corsで送るためFetchを使用）
-    const res = await fetch(GAS_URL, {
+    // GASに送信
+    // no-cors: レスポンスは読めないが送信は届く。グループ通知で確認。
+    await fetch(GAS_URL, {
       method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
+      mode:    'no-cors',
+      headers: { 'Content-Type': 'text/plain' },  // no-corsではapplication/jsonは不可
       body:    JSON.stringify(payload),
     });
 
-    let msg = '';
-    try {
-      const json = await res.json();
-      msg = json.message || '登録しました';
-    } catch(e) {
-      msg = currentTab === 'work'
-        ? `✅ 日報を登録しました（${entries.length}件）`
-        : `🚚 出荷データを登録しました`;
-    }
+    const msg = currentTab === 'work'
+      ? `✅ 日報を送信しました（${entries.length}件）\nLINEグループに通知されます`
+      : `🚚 出荷データを送信しました\nLINEグループに通知されます`;
 
     showToast(msg);
 
-    // フォームリセット
+    // 下書き削除＋フォームリセット
+    localStorage.removeItem(DRAFT_KEY_WORK);
+    localStorage.removeItem(DRAFT_KEY_SALE);
+    document.getElementById('draftBar').classList.add('hidden');
+
     if (currentTab === 'work') {
       alertSelected.clear();
       document.querySelectorAll('.alert-btn').forEach(b => b.classList.remove('active'));
