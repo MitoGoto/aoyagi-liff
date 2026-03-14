@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>あおやぎファーム 日報入力</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
+  :root {
+    --green:      #2d6a2d;
+    --green-mid:  #4a9e4a;
+    --green-light:#e8f5e9;
+    --green-pale: #f1f8f1;
+    --accent:     #ff6b35;
+    --line-green: #00b900;
+    --text:       #1a1a1a;
+    --muted:      #6b7280;
+    --border:     #d1d5db;
+    --radius:     12px;
+    --shadow:     0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: #f5f7f5;
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 100px;
+  }
+
+  /* ヘッダー */
+  .header {
+    background: var(--green);
+    color: white;
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .header-icon { font-size: 22px; }
+  .header-title { font-size: 16px; font-weight: 700; }
+  .header-date { margin-left: auto; font-size: 12px; opacity: 0.85; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; }
+
+  /* タブ */
+  .tabs {
+    display: flex;
+    background: white;
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+    font-weight: 700;
+  }
+
+  /* コンテンツ */
+  .content { padding: 12px; }
+  .section {
+    background: white;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--green-light);
+  }
+
+  /* フォーム要素 */
+  .form-row {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .form-row.col2 { grid-template-columns: 1fr 1fr; }
+  .form-row.col3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-row.col4 { grid-template-columns: 2fr 2fr 2fr 1fr; }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-group select:focus,
+  .form-group input:focus { border-color: var(--green-mid); }
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 12px;
+  }
+  .form-group input[type="number"] { text-align: right; }
+
+  /* 天気ボタン */
+  .weather-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .w-btn {
+    padding: 8px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .w-btn.active {
+    background: var(--green-light);
+    border-color: var(--green-mid);
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* 作業エントリー */
+  .entry-card {
+    background: var(--green-pale);
+    border: 1.5px solid var(--green-light);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .entry-num {
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background: var(--green);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .entry-del {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px;
+  }
+
+  /* 時間ステッパー */
+  .stepper {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+  }
+  .stepper button {
+    width: 36px;
+    height: 42px;
+    border: none;
+    background: var(--green-light);
+    color: var(--green);
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .stepper span {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* 体感ボタン */
+  .feel-btns { display: flex; gap: 6px; }
+  .feel-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .feel-btn.active {
+    background: var(--green-light);
+    border-color: var(--green-mid);
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* 異常連絡 */
+  .alert-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    resize: none;
+  }
+  .alert-input:focus { border-color: #ef4444; }
+
+  /* 追加ボタン */
+  .add-btn {
+    width: 100%;
+    padding: 11px;
+    border: 1.5px dashed var(--green-mid);
+    border-radius: 8px;
+    background: var(--green-pale);
+    color: var(--green);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .add-btn:active { background: var(--green-light); }
+
+  /* 合計バー */
+  .total-bar {
+    background: var(--green-light);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  /* 送信ボタン */
+  .submit-area {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: white;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .submit-btn:active { background: #1e4d1e; }
+
+  /* 出荷タブ */
+  .sale-card {
+    background: #fff8f5;
+    border: 1.5px solid #fde8dc;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+
+  /* 異常連絡ボタン */
+  .alert-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
+  .alert-btn {
+    padding: 7px 11px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+    color: var(--text);
+  }
+  .alert-btn.active {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  /* トースト */
+  .toast {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--green);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all .3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 非表示 */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ヘッダー -->
+<div class="header">
+  <span class="header-icon">🌿</span>
+  <span class="header-title">あおやぎファーム 日報入力</span>
+  <span class="header-user" id="userName" style="font-size:12px;opacity:0.85;background:rgba(255,255,255,0.15);padding:3px 8px;border-radius:20px;margin-left:4px"></span>
+  <span class="header-date" id="headerDate"></span>
+</div>
+
+<!-- タブ -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('work')">👷 作業ログ</div>
+  <div class="tab" onclick="switchTab('sale')">🚚 出荷データ</div>
+</div>
+
+<!-- トースト -->
+<div class="toast" id="toast"></div>
+
+<!-- ===== 作業ログタブ ===== -->
+<div id="tabWork" class="content">
+
+  <!-- 基本情報 -->
+  <div class="section">
+    <div class="section-title">📅 基本情報</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>日付</label>
+        <input type="date" id="workDate">
+      </div>
+    </div>
+    <div class="form-row col3">
+      <div class="form-group">
+        <label>気温(℃)</label>
+        <div class="stepper">
+          <button onclick="step('temp',-1)">−</button>
+          <span id="tempVal">15</span>
+          <button onclick="step('temp',1)">＋</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>風速(m)</label>
+        <div class="stepper">
+          <button onclick="step('wind',-1)">−</button>
+          <span id="windVal">3</span>
+          <button onclick="step('wind',1)">＋</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>天気</label>
+        <div class="select-wrap">
+          <select id="weather">
+            <option>晴れ</option>
+            <option>晴れ時々曇り</option>
+            <option>曇り</option>
+            <option>雨</option>
+            <option>強風</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-bottom:10px">
+      <label>体感</label>
+      <div class="feel-btns">
+        <button class="feel-btn" onclick="setFeel(this,'非常に寒い')">🥶<br>非常に寒い</button>
+        <button class="feel-btn" onclick="setFeel(this,'寒い')">❄️<br>寒い</button>
+        <button class="feel-btn active" onclick="setFeel(this,'普通')">😊<br>普通</button>
+        <button class="feel-btn" onclick="setFeel(this,'暑い')">☀️<br>暑い</button>
+        <button class="feel-btn" onclick="setFeel(this,'非常に暑い')">🔥<br>非常に暑い</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>異常連絡</label>
+      <div class="alert-btns" id="alertBtns">
+        <button class="alert-btn" onclick="toggleAlert(this,'怪我')">🤕 怪我</button>
+        <button class="alert-btn" onclick="toggleAlert(this,'体調不良')">🤒 体調不良</button>
+        <button class="alert-btn" onclick="toggleAlert(this,'設備不具合')">🔧 設備不具合</button>
+        <button class="alert-btn" onclick="toggleAlert(this,'天候被害')">🌪 天候被害</button>
+        <button class="alert-btn" onclick="toggleAlert(this,'資材不足')">📦 資材不足</button>
+        <button class="alert-btn" onclick="toggleAlert(this,'病害虫')">🐛 病害虫</button>
+      </div>
+      <textarea class="alert-input" id="alertText" rows="2" placeholder="詳細メモ（任意）" style="margin-top:8px"></textarea>
+    </div>
+  </div>
+
+  <!-- 作業エントリー -->
+  <div class="section">
+    <div class="section-title">🔨 作業内容</div>
+    <div id="entryList"></div>
+    <button class="add-btn" onclick="addEntry()">＋ 作業行を追加</button>
+    <div class="total-bar" id="totalBar">⏱ 合計: —</div>
+  </div>
+
+</div>
+
+<!-- ===== 出荷タブ ===== -->
+<div id="tabSale" class="content hidden">
+  <div class="section">
+    <div class="section-title">📅 出荷日</div>
+    <div class="form-group">
+      <input type="date" id="saleDate">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📦 出荷内容</div>
+    <div id="saleList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📝 備考</div>
+    <div class="form-group">
+      <textarea class="alert-input" id="saleMemo" rows="2" placeholder="例: 予備2袋含む"></textarea>
+    </div>
+  </div>
+</div>
+
+<!-- 送信ボタン -->
+<div class="submit-area">
+  <button class="submit-btn" onclick="submit()">
+    <span>💾</span>
+    <span id="submitLabel">日報を登録する</span>
+  </button>
+</div>
+
+<script>
+// ============================================================
+// データ定義
+// ============================================================
+const WORKERS = ['①匡彦','②絵瑠','③基貴','④ゆか','⑤まゆこ','⑥良枝','⑦賢一','⑧たかお','⑨たつや','⑩恒川','⑪ゆきの'];
+const FIELDS  = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
+const CROPS   = ['ケール','もものすけ','さつまいも','トレビス','その他'];
+const WORKS   = ['収穫','選別調整','袋詰め','ラベル貼付','箱詰め','定植','播種','耕運','防草シート','マルチ','不織布がけ','育苗管理','除草','肥料','片付け','移動','出荷','その他'];
+const DESTS   = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
+const UNITS   = ['袋','ケース','個','kg'];
+
+let currentTab = 'work';
+let feeling    = '普通';
+let tempVal    = 15;
+let windVal    = 3;
+let entries    = [];
+let sales      = [];
+
+// ============================================================
+// 初期化
+// ============================================================
+async function init() {
+  // LIFF初期化
+  try {
+    await liff.init({ liffId: '2009446922-hoUkWLnQ' });
+    if (!liff.isLoggedIn()) {
+      liff.login();
+      return;
+    }
+    // ユーザー名をヘッダーに表示
+    const profile = await liff.getProfile();
+    document.getElementById('userName').textContent = profile.displayName;
+  } catch(e) {
+    // LIFF外（ブラウザ直接アクセス）でも動作するようフォールバック
+    console.warn('LIFF init failed (running outside LINE):', e);
+    document.getElementById('userName').textContent = 'ゲスト';
+  }
+
+  const today = new Date();
+  const fmt   = d => d.toISOString().slice(0,10);
+  document.getElementById('workDate').value = fmt(today);
+  document.getElementById('saleDate').value = fmt(today);
+  document.getElementById('headerDate').textContent =
+    `${today.getMonth()+1}/${today.getDate()}(${['日','月','火','水','木','金','土'][today.getDay()]})`;
+  addEntry();
+  // 出荷: 5行固定で初期化
+  sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+  renderSales();
+}
+
+// ============================================================
+// タブ切替
+// ============================================================
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach((t,i) =>
+    t.classList.toggle('active', (i===0&&tab==='work')||(i===1&&tab==='sale')));
+  document.getElementById('tabWork').classList.toggle('hidden', tab!=='work');
+  document.getElementById('tabSale').classList.toggle('hidden', tab!=='sale');
+  document.getElementById('submitLabel').textContent =
+    tab === 'work' ? '日報を登録する' : '出荷データを登録する';
+}
+
+// ============================================================
+// ステッパー
+// ============================================================
+function step(id, delta) {
+  if (id === 'temp') {
+    tempVal = Math.max(-20, Math.min(45, tempVal + delta));
+    document.getElementById('tempVal').textContent = tempVal;
+  } else {
+    windVal = Math.max(0, Math.min(30, windVal + delta));
+    document.getElementById('windVal').textContent = windVal;
+  }
+}
+
+// ============================================================
+// 体感
+// ============================================================
+function setFeel(btn, val) {
+  feeling = val;
+  document.querySelectorAll('.feel-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ============================================================
+// 作業エントリー
+// ============================================================
+function sel(opts, cls, def) {
+  return `<div class="select-wrap"><select class="${cls}">${opts.map((o,i)=>`<option${i===def?' selected':''}>${o}</option>`).join('')}</select></div>`;
+}
+
+function addEntry() {
+  const last = entries[entries.length-1] || {};
+  entries.push({ w: last.w||0, f: last.f||0, c: last.c||0, k: 0, h: 2.0 });
+  renderEntries();
+}
+
+function removeEntry(i) {
+  if (entries.length <= 1) return;
+  entries.splice(i,1);
+  renderEntries();
+}
+
+function renderEntries() {
+  const el = document.getElementById('entryList');
+  el.innerHTML = entries.map((e,i) => `
+    <div class="entry-card">
+      <span class="entry-num">${i+1}</span>
+      ${i>0 ? `<button class="entry-del" onclick="removeEntry(${i})">×</button>` : ''}
+      <div class="form-row col2" style="margin-top:8px">
+        <div class="form-group"><label>作業者</label>${sel(WORKERS,'e-w',e.w)}</div>
+        <div class="form-group"><label>区画</label>${sel(FIELDS,'e-f',e.f)}</div>
+      </div>
+      <div class="form-row col3">
+        <div class="form-group"><label>作物</label>${sel(CROPS,'e-c',e.c)}</div>
+        <div class="form-group"><label>作業</label>${sel(WORKS,'e-k',e.k)}</div>
+        <div class="form-group">
+          <label>時間</label>
+          <div class="stepper">
+            <button onclick="stepH(${i},-0.25)">−</button>
+            <span id="h${i}">${e.h.toFixed(2)}</span>
+            <button onclick="stepH(${i},0.25)">＋</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  // selectの変更を保存
+  document.querySelectorAll('.entry-card').forEach((card,i) => {
+    card.querySelector('.e-w').addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
+    card.querySelector('.e-f').addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
+    card.querySelector('.e-c').addEventListener('change', e => { entries[i].c = e.target.selectedIndex; });
+    card.querySelector('.e-k').addEventListener('change', e => { entries[i].k = e.target.selectedIndex; });
+  });
+
+  updateTotal();
+}
+
+function stepH(i, delta) {
+  entries[i].h = Math.max(0.25, Math.min(24, entries[i].h + delta));
+  document.getElementById(`h${i}`).textContent = entries[i].h.toFixed(2);
+  updateTotal();
+}
+
+function updateTotal() {
+  const totals = {};
+  entries.forEach(e => {
+    const name = WORKERS[e.w];
+    totals[name] = (totals[name]||0) + e.h;
+  });
+  const txt = Object.entries(totals).map(([n,h])=>`${n}: ${h}h`).join('　');
+  document.getElementById('totalBar').textContent = '⏱ 合計: ' + txt;
+}
+
+// ============================================================
+// 出荷エントリー
+// ============================================================
+function addSale() {
+  sales.push({ d: 0, c: 0, qty: 152, u: 0 });
+  renderSales();
+}
+
+function removeSale(i) {
+  if (sales.length <= 1) return;
+  sales.splice(i,1);
+  renderSales();
+}
+
+// 出荷先ラベル（固定5行）
+const SALE_ROWS = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
+
+function renderSales() {
+  const el = document.getElementById('saleList');
+  el.innerHTML = SALE_ROWS.map((dest, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
+      <div style="width:90px;font-size:13px;font-weight:700;color:var(--green);flex-shrink:0">${dest}</div>
+      <div class="stepper" style="flex:1">
+        <button onclick="stepQ(${i},-1)">−</button>
+        <span id="q${i}">${sales[i].qty}</span>
+        <button onclick="stepQ(${i},1)">＋</button>
+      </div>
+      <div class="select-wrap" style="width:68px;flex-shrink:0">
+        <select id="u${i}" style="padding:10px 6px;font-size:13px">
+          ${UNITS.map((u,j)=>`<option${j===sales[i].u?' selected':''}>${u}</option>`).join('')}
+        </select>
+      </div>
+    </div>`).join('');
+
+  SALE_ROWS.forEach((_,i) => {
+    document.getElementById(`u${i}`).addEventListener('change', e => {
+      sales[i].u = e.target.selectedIndex;
+    });
+  });
+}
+
+function stepQ(i, delta) {
+  sales[i].qty = Math.max(0, sales[i].qty + delta);
+  document.getElementById(`q${i}`).textContent = sales[i].qty;
+}
+
+// ============================================================
+// 異常連絡
+// ============================================================
+const alertSelected = new Set();
+function toggleAlert(btn, val) {
+  if (alertSelected.has(val)) {
+    alertSelected.delete(val);
+    btn.classList.remove('active');
+  } else {
+    alertSelected.add(val);
+    btn.classList.add('active');
+  }
+}
+
+// ============================================================
+// 送信（モック）
+// ============================================================
+function submit() {
+  const btn = document.querySelector('.submit-btn');
+  btn.style.background = '#888';
+  btn.textContent = '送信中...';
+
+  setTimeout(() => {
+    btn.style.background = 'var(--green)';
+    btn.innerHTML = '<span>💾</span><span id="submitLabel">' +
+      (currentTab==='work' ? '日報を登録する' : '出荷データを登録する') + '</span>';
+
+    showToast(currentTab === 'work'
+      ? `✅ 日報を登録しました（作業${entries.length}件）`
+      : `🚚 出荷データを登録しました（${sales.length}件）`);
+
+    if (currentTab === 'work') {
+      entries = [];
+      addEntry();
+    } else {
+      sales = [];
+      addSale();
+    }
+  }, 1200);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ============================================================
+init();
+</script>
+</body>
+</html>
