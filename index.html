@@ -721,30 +721,113 @@ function toggleAlert(btn, val) {
 }
 
 // ============================================================
-// 送信（モック）
+// GAS連携送信
 // ============================================================
-function submit() {
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
+
+async function submit() {
   const btn = document.querySelector('.submit-btn');
   btn.style.background = '#888';
-  btn.textContent = '送信中...';
+  btn.innerHTML = '<span>⏳</span><span>送信中...</span>';
+  btn.disabled = true;
 
-  setTimeout(() => {
-    btn.style.background = 'var(--green)';
-    btn.innerHTML = '<span>💾</span><span id="submitLabel">' +
-      (currentTab==='work' ? '日報を登録する' : '出荷データを登録する') + '</span>';
-
-    showToast(currentTab === 'work'
-      ? `✅ 日報を登録しました（作業${entries.length}件）`
-      : `🚚 出荷データを登録しました（${sales.length}件）`);
+  try {
+    let payload;
 
     if (currentTab === 'work') {
+      // ---- 日報ペイロード ----
+      const dateVal = document.getElementById('workDate').value;
+      const weather = document.getElementById('weather').value;
+      const alertText = document.getElementById('alertText').value.trim();
+      const alertTags = Array.from(alertSelected).join('・');
+      const alertFull = [alertTags, alertText].filter(Boolean).join(' / ') || 'なし';
+
+      // LINEユーザー名→作業者IDは今後マッピング、今は記録者として送る
+      let userId = 'LIFF';
+      try { userId = (await liff.getProfile()).userId; } catch(e) {}
+
+      // 作業エントリーを整形
+      const workEntries = entries.map(e => ({
+        worker: WORKERS[e.w],
+        field:  FIELDS[e.f],
+        crop:   CROPS[e.c],
+        work:   WORKS[e.k],
+        hours:  e.h,
+      }));
+
+      payload = {
+        type:        'daily',
+        date:        dateVal,
+        weather:     weather,
+        temperature: tempVal,
+        wind_speed:  windVal,
+        body_feeling: feeling,
+        alerts:      alertFull,
+        user_id:     userId,
+        work_entries: workEntries,
+        input_method: 'LIFF',
+      };
+
+    } else {
+      // ---- 出荷ペイロード ----
+      const dateVal = document.getElementById('saleDate').value;
+      const memo    = document.getElementById('saleMemo').value.trim();
+      const saleRows = SALE_ROWS.map((dest, i) => ({
+        dest: dest,
+        qty:  sales[i].qty,
+        unit: UNITS[sales[i].u],
+      })).filter(r => r.qty > 0);
+
+      payload = {
+        type:      'sales',
+        date:      dateVal,
+        sales:     saleRows,
+        memo:      memo,
+        input_method: 'LIFF',
+      };
+    }
+
+    // GASに送信（no-corsで送るためFetchを使用）
+    const res = await fetch(GAS_URL, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(payload),
+    });
+
+    let msg = '';
+    try {
+      const json = await res.json();
+      msg = json.message || '登録しました';
+    } catch(e) {
+      msg = currentTab === 'work'
+        ? `✅ 日報を登録しました（${entries.length}件）`
+        : `🚚 出荷データを登録しました`;
+    }
+
+    showToast(msg);
+
+    // フォームリセット
+    if (currentTab === 'work') {
+      alertSelected.clear();
+      document.querySelectorAll('.alert-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('alertText').value = '';
       entries = [];
       addEntry();
     } else {
-      sales = [];
-      addSale();
+      sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+      renderSales();
+      document.getElementById('saleMemo').value = '';
     }
-  }, 1200);
+
+  } catch(err) {
+    showToast('❌ 送信エラー: ' + err.message);
+    console.error(err);
+  } finally {
+    btn.style.background = 'var(--green)';
+    btn.innerHTML = '<span>💾</span><span id="submitLabel">' +
+      (currentTab === 'work' ? '日報を登録する' : '出荷データを登録する') + '</span>';
+    btn.disabled = false;
+  }
 }
 
 function showToast(msg) {
