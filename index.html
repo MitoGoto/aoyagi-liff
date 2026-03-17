@@ -551,7 +551,19 @@
 const WORKERS = ['①匡彦','②絵瑠','③基貴','④ゆか','⑤まゆこ','⑥良枝','⑦賢一','⑧たかお','⑨たつや','⑩恒川','⑪ゆきの'];
 const FIELDS  = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
 const CROPS   = ['ケール','もものすけ','さつまいも','トレビス','その他'];
-const WORKS   = ['収穫','選別調整','袋詰め','ラベル貼付','箱詰め','定植','播種','耕運','防草シート','マルチ','不織布がけ','育苗管理','除草','肥料','片付け','移動','出荷','その他'];
+// 作業グループ定義（大項目: [中項目, ...]）
+const WORK_GROUPS = [
+  { label: '🌾 収穫・出荷準備', items: ['収穫（通常）','収穫（拾い獲り）','選別調整','計量','袋詰め','ラベル貼付','箱詰め','出荷準備'] },
+  { label: '🌱 育苗', items: ['育苗管理','鉢上げ','播種'] },
+  { label: '🚜 定植・圃場整備', items: ['定植','定植後灌水','不織布がけ','マルチ','防草シート','耕耘','圃場整備'] },
+  { label: '🌿 施肥・防除', items: ['肥料（堆肥）','肥料（苦土石灰）','肥料（化成肥料）','肥料（液肥）','農薬散布'] },
+  { label: '✂️ 管理作業', items: ['除草','病害虫確認','灌水'] },
+  { label: '📦 片付け', items: ['片付け（残渣抜き）','片付け（マルチはがし）','片付け（資材撤去）','片付け（清掃）'] },
+  { label: '🚗 移動・事務', items: ['移動','出荷運搬','来客対応','ミーティング','計画・分析','写真撮影','日報'] },
+  { label: '📝 その他', items: ['その他農作業','その他出荷','その他'] },
+];
+// フラットリスト（後方互換・集計用）
+const WORKS = WORK_GROUPS.flatMap(g => g.items);
 const DESTS   = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
 const UNITS   = ['袋','ケース','個','kg'];
 
@@ -568,7 +580,7 @@ let sales      = [];
 async function init() {
   // LIFF初期化
   try {
-    await liff.init({ liffId: '2009498715-Ti30qYpZ' });
+    await liff.init({ liffId: '2009446922-hoUkWLnQ' });
     if (!liff.isLoggedIn()) {
       liff.login();
       return;
@@ -637,10 +649,18 @@ function setFeel(btn, val) {
 function sel(opts, cls, def) {
   return `<div class="select-wrap"><select class="${cls}">${opts.map((o,i)=>`<option${i===def?' selected':''}>${o}</option>`).join('')}</select></div>`;
 }
+function selWork(cls, defVal) {
+  const opts = WORK_GROUPS.map(g =>
+    `<optgroup label="${g.label}">${g.items.map(item =>
+      `<option${item===defVal?' selected':''}>${item}</option>`
+    ).join('')}</optgroup>`
+  ).join('');
+  return `<div class="select-wrap"><select class="${cls}">${opts}</select></div>`;
+}
 
 function addEntry() {
   const last = entries[entries.length-1] || {};
-  entries.push({ w: last.w||0, f: last.f||0, c: last.c||0, k: 0, h: 2.0 });
+  entries.push({ w: last.w||0, f: last.f||0, c: last.c||0, k: last.k||WORK_GROUPS[0].items[0], h: 2.0 });
   renderEntries();
 }
 
@@ -662,7 +682,7 @@ function renderEntries() {
       </div>
       <div class="form-row col3">
         <div class="form-group"><label>作物</label>${sel(CROPS,'e-c',e.c)}</div>
-        <div class="form-group"><label>作業</label>${sel(WORKS,'e-k',e.k)}</div>
+        <div class="form-group"><label>作業</label>${selWork('e-k', e.k || WORK_GROUPS[0].items[0])}</div>
         <div class="form-group">
           <label>時間</label>
           <div class="stepper">
@@ -674,12 +694,12 @@ function renderEntries() {
       </div>
     </div>`).join('');
 
-  // selectの変更を保存
+  // selectの変更を保存（作業は名前で保持）
   document.querySelectorAll('.entry-card').forEach((card,i) => {
     card.querySelector('.e-w').addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
     card.querySelector('.e-f').addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
     card.querySelector('.e-c').addEventListener('change', e => { entries[i].c = e.target.selectedIndex; });
-    card.querySelector('.e-k').addEventListener('change', e => { entries[i].k = e.target.selectedIndex; });
+    card.querySelector('.e-k').addEventListener('change', e => { entries[i].k = e.target.value; });
   });
 
   updateTotal();
@@ -887,7 +907,7 @@ async function submit() {
         worker: WORKERS[e.w],
         field:  FIELDS[e.f],
         crop:   CROPS[e.c],
-        work:   WORKS[e.k],
+        work:   e.k,
         hours:  e.h,
       }));
 
