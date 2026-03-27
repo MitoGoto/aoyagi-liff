@@ -32,7 +32,6 @@
     padding-bottom: 100px;
   }
 
-  /* ヘッダー */
   .header {
     background: var(--green);
     color: white;
@@ -49,7 +48,6 @@
   .header-title { font-size: 16px; font-weight: 700; }
   .header-date { margin-left: auto; font-size: 12px; opacity: 0.85; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; }
 
-  /* タブ */
   .tabs {
     display: flex;
     background: white;
@@ -75,7 +73,6 @@
     font-weight: 700;
   }
 
-  /* コンテンツ */
   .content { padding: 12px; }
   .section {
     background: white;
@@ -100,7 +97,6 @@
     background: var(--green-light);
   }
 
-  /* フォーム要素 */
   .form-row {
     display: grid;
     gap: 10px;
@@ -108,7 +104,6 @@
   }
   .form-row.col2 { grid-template-columns: 1fr 1fr; }
   .form-row.col3 { grid-template-columns: 1fr 1fr 1fr; }
-  .form-row.col4 { grid-template-columns: 2fr 2fr 2fr 1fr; }
 
   .form-group label {
     display: block;
@@ -149,12 +144,7 @@
   }
   .form-group input[type="number"] { text-align: right; }
 
-  /* 天気ボタン */
-  .weather-btns {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-  }
+  /* 天気 */
   .w-btn {
     padding: 8px 12px;
     border: 1.5px solid var(--border);
@@ -324,15 +314,59 @@
   }
   .submit-btn:active { background: #1e4d1e; }
 
-  /* 出荷タブ */
-  .sale-card {
-    background: #fff8f5;
-    border: 1.5px solid #fde8dc;
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 10px;
-    position: relative;
+  /* 出荷行 */
+  .sale-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--green-light);
   }
+  .sale-row:last-child { border-bottom: none; }
+  .sale-dest {
+    width: 90px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    flex-shrink: 0;
+  }
+  /* 出荷数: 直接入力（数字キーボード） */
+  .sale-qty {
+    flex: 1;
+    padding: 10px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    outline: none;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .sale-qty:focus {
+    border-color: var(--green-mid);
+    background: var(--green-pale);
+  }
+  .sale-qty::placeholder { color: #ccc; font-size: 14px; font-weight: 400; }
+  .sale-unit {
+    width: 64px;
+    flex-shrink: 0;
+    padding: 10px 6px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+  }
+  .sale-unit:focus { border-color: var(--green-mid); }
 
   /* 異常連絡ボタン */
   .alert-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
@@ -399,11 +433,40 @@
   .draft-btn.restore { background: #f59e0b; color: white; }
   .draft-btn.discard { background: #e5e7eb; color: #374151; }
 
-  /* 非表示 */
+  /* ローディング */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    font-size: 14px;
+    color: var(--green);
+    font-weight: 700;
+    gap: 12px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--green-light);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
   .hidden { display: none !important; }
 </style>
 </head>
 <body>
+
+<!-- ローディング -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <span>マスタ読み込み中...</span>
+</div>
 
 <!-- ヘッダー -->
 <div class="header">
@@ -520,6 +583,7 @@
 
   <div class="section">
     <div class="section-title">📦 出荷内容</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">数量欄をタップして数字キーボードで直接入力できます</div>
     <div id="saleList"></div>
   </div>
 
@@ -546,12 +610,16 @@
 
 <script>
 // ============================================================
-// データ定義
+// マスタデータ（GASから動的取得、フォールバックあり）
 // ============================================================
-const WORKERS = ['①匡彦','②絵瑠','③基貴','④ゆか','⑤まゆこ','⑥良枝','⑦賢一','⑧たかお','⑨たつや','⑩恒川','⑪ゆきの'];
-const FIELDS  = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
-const CROPS   = ['ケール','もものすけ','さつまいも','トレビス','その他'];
-// 作業グループ定義（大項目: [中項目, ...]）
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
+
+// 起動時にGASから取得して上書きされる
+let WORKERS = [];  // [{id, name, type}]
+let CROPS   = [];  // [{cd, name}]
+let DESTS   = [];  // [{cd, name}]
+
+// 作業グループ（固定）
 const WORK_GROUPS = [
   { label: '🌾 収穫・出荷準備', items: ['収穫（開始期）','収穫（本格）','収穫（拾い獲り）','選別調整','計量','袋詰め','ラベル貼付','箱詰め','出荷準備'] },
   { label: '🌱 育苗', items: ['育苗管理','育苗追肥','鉢上げ','播種'] },
@@ -562,35 +630,46 @@ const WORK_GROUPS = [
   { label: '🚗 移動・事務', items: ['移動','出荷運搬','来客対応','ミーティング','計画・分析','写真撮影','日報'] },
   { label: '📝 その他', items: ['その他農作業','その他出荷','その他'] },
 ];
-// フラットリスト（後方互換・集計用）
-const WORKS = WORK_GROUPS.flatMap(g => g.items);
-const DESTS   = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
-const UNITS   = ['袋','ケース','個','kg'];
+
+const FIELDS = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
+const UNITS  = ['袋','ケース','個','kg'];
+
+// フォールバック定義
+const WORKERS_DEFAULT = [
+  {id:'M001',name:'青柳匡彦',type:'M'},{id:'M002',name:'青柳絵瑠',type:'M'},{id:'M003',name:'藤井基貴',type:'M'},
+  {id:'W002',name:'麻友子',type:'W'},{id:'W003',name:'良枝',type:'W'},{id:'W004',name:'賢一',type:'W'},
+  {id:'W005',name:'孝雄',type:'W'},{id:'W006',name:'達也',type:'W'},{id:'W007',name:'恒川',type:'W'},
+  {id:'W008',name:'渡辺ゆき乃',type:'W'},{id:'W009',name:'桜庭 裕紀子',type:'W'},
+  {id:'W010',name:'花島 夢美',type:'W'},{id:'W011',name:'松本 美帆',type:'W'},{id:'W012',name:'小澤',type:'W'},
+];
+const CROPS_DEFAULT = [
+  {cd:'KL',name:'ケール'},{cd:'MO',name:'もものすけ'},{cd:'SP',name:'さつまいも'},{cd:'TR',name:'トレビス'},{cd:'OT',name:'その他'}
+];
+const DESTS_DEFAULT = [
+  {cd:'LR',name:'ランドローム'},{cd:'BS',name:'ベイシア佐倉店'},{cd:'SA',name:'さくらノーム'},{cd:'SG',name:'シェアガーデン'},{cd:'OT',name:'その他'}
+];
 
 let currentTab = 'work';
 let feeling    = '普通';
 let tempVal    = 15;
 let windVal    = 3;
 let entries    = [];
-let sales      = [];
+let sales      = [];  // [{qty: number, u: number}]
 
 // ============================================================
 // 初期化
 // ============================================================
 async function init() {
   // LIFF初期化
+  let userId = 'LIFF';
   try {
     await liff.init({ liffId: '2009446922-hoUkWLnQ' });
-    if (!liff.isLoggedIn()) {
-      liff.login();
-      return;
-    }
-    // ユーザー名をヘッダーに表示
+    if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     document.getElementById('userName').textContent = profile.displayName;
+    userId = profile.userId;
   } catch(e) {
-    // LIFF外（ブラウザ直接アクセス）でも動作するようフォールバック
-    console.warn('LIFF init failed (running outside LINE):', e);
+    console.warn('LIFF init failed:', e);
     document.getElementById('userName').textContent = 'ゲスト';
   }
 
@@ -600,11 +679,37 @@ async function init() {
   document.getElementById('saleDate').value = fmt(today);
   document.getElementById('headerDate').textContent =
     `${today.getMonth()+1}/${today.getDate()}(${['日','月','火','水','木','金','土'][today.getDay()]})`;
+
+  // GASからマスタ取得（タイムアウト5秒）
+  try {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 5000);
+    const res  = await fetch(GAS_URL + '?action=getMasters', { signal: ctrl.signal });
+    clearTimeout(tid);
+    const data = await res.json();
+    if (data.status === 'ok') {
+      if (data.workers && data.workers.length > 0) WORKERS = data.workers;
+      else WORKERS = WORKERS_DEFAULT;
+      if (data.crops   && data.crops.length > 0)   CROPS   = data.crops;
+      else CROPS = CROPS_DEFAULT;
+      if (data.dests   && data.dests.length > 0)   DESTS   = data.dests;
+      else DESTS = DESTS_DEFAULT;
+    } else {
+      throw new Error(data.message || 'API error');
+    }
+  } catch(e) {
+    console.warn('マスタ取得失敗、フォールバック使用:', e.message);
+    WORKERS = WORKERS_DEFAULT;
+    CROPS   = CROPS_DEFAULT;
+    DESTS   = DESTS_DEFAULT;
+  }
+
+  // ローディング非表示
+  document.getElementById('loadingOverlay').classList.add('hidden');
+
   addEntry();
-  // 出荷: 5行固定で初期化
-  sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+  sales = DESTS.map(() => ({ qty: 0, u: 0 }));
   renderSales();
-  // 下書き確認
   checkDraft();
 }
 
@@ -622,7 +727,7 @@ function switchTab(tab) {
 }
 
 // ============================================================
-// ステッパー
+// ステッパー（気温・風速）
 // ============================================================
 function step(id, delta) {
   if (id === 'temp') {
@@ -646,8 +751,8 @@ function setFeel(btn, val) {
 // ============================================================
 // 作業エントリー
 // ============================================================
-function sel(opts, cls, def) {
-  return `<div class="select-wrap"><select class="${cls}">${opts.map((o,i)=>`<option${i===def?' selected':''}>${o}</option>`).join('')}</select></div>`;
+function sel(opts, cls, defIdx, valKey) {
+  return `<div class="select-wrap"><select class="${cls}">${opts.map((o,i)=>`<option value="${o[valKey]||o}"${i===defIdx?' selected':''}>${o.name||o}</option>`).join('')}</select></div>`;
 }
 function selWork(cls, defVal) {
   const opts = WORK_GROUPS.map(g =>
@@ -677,11 +782,11 @@ function renderEntries() {
       <span class="entry-num">${i+1}</span>
       ${i>0 ? `<button class="entry-del" onclick="removeEntry(${i})">×</button>` : ''}
       <div class="form-row col2" style="margin-top:8px">
-        <div class="form-group"><label>作業者</label>${sel(WORKERS,'e-w',e.w)}</div>
-        <div class="form-group"><label>区画</label>${sel(FIELDS,'e-f',e.f)}</div>
+        <div class="form-group"><label>作業者</label>${sel(WORKERS,'e-w',e.w,'name')}</div>
+        <div class="form-group"><label>区画</label>${sel(FIELDS,'e-f',e.f,'')}</div>
       </div>
       <div class="form-row col3">
-        <div class="form-group"><label>作物</label>${sel(CROPS,'e-c',e.c)}</div>
+        <div class="form-group"><label>作物</label>${sel(CROPS,'e-c',e.c,'name')}</div>
         <div class="form-group"><label>作業</label>${selWork('e-k', e.k || WORK_GROUPS[0].items[0])}</div>
         <div class="form-group">
           <label>時間</label>
@@ -694,7 +799,6 @@ function renderEntries() {
       </div>
     </div>`).join('');
 
-  // selectの変更を保存（作業は名前で保持）
   document.querySelectorAll('.entry-card').forEach((card,i) => {
     card.querySelector('.e-w').addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
     card.querySelector('.e-f').addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
@@ -714,7 +818,7 @@ function stepH(i, delta) {
 function updateTotal() {
   const totals = {};
   entries.forEach(e => {
-    const name = WORKERS[e.w];
+    const name = WORKERS[e.w] ? WORKERS[e.w].name : '—';
     totals[name] = (totals[name]||0) + e.h;
   });
   const txt = Object.entries(totals).map(([n,h])=>`${n}: ${h}h`).join('　');
@@ -722,49 +826,30 @@ function updateTotal() {
 }
 
 // ============================================================
-// 出荷エントリー
+// 出荷エントリー（直接数字入力方式）
 // ============================================================
-function addSale() {
-  sales.push({ d: 0, c: 0, qty: 152, u: 0 });
-  renderSales();
-}
-
-function removeSale(i) {
-  if (sales.length <= 1) return;
-  sales.splice(i,1);
-  renderSales();
-}
-
-// 出荷先ラベル（固定5行）
-const SALE_ROWS = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
-
 function renderSales() {
   const el = document.getElementById('saleList');
-  el.innerHTML = SALE_ROWS.map((dest, i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
-      <div style="width:90px;font-size:13px;font-weight:700;color:var(--green);flex-shrink:0">${dest}</div>
-      <div class="stepper" style="flex:1">
-        <button onclick="stepQ(${i},-1)">−</button>
-        <span id="q${i}">${sales[i].qty}</span>
-        <button onclick="stepQ(${i},1)">＋</button>
-      </div>
-      <div class="select-wrap" style="width:68px;flex-shrink:0">
-        <select id="u${i}" style="padding:10px 6px;font-size:13px">
-          ${UNITS.map((u,j)=>`<option${j===sales[i].u?' selected':''}>${u}</option>`).join('')}
-        </select>
-      </div>
+  el.innerHTML = DESTS.map((dest, i) => `
+    <div class="sale-row">
+      <div class="sale-dest">${dest.name}</div>
+      <input
+        class="sale-qty"
+        type="number"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        min="0"
+        max="9999"
+        placeholder="0"
+        value="${sales[i] && sales[i].qty > 0 ? sales[i].qty : ''}"
+        id="q${i}"
+        onchange="sales[${i}].qty = parseInt(this.value)||0"
+        oninput="sales[${i}].qty = parseInt(this.value)||0"
+      >
+      <select class="sale-unit" id="u${i}" onchange="sales[${i}].u = this.selectedIndex">
+        ${UNITS.map((u,j)=>`<option${sales[i]&&j===sales[i].u?' selected':''}>${u}</option>`).join('')}
+      </select>
     </div>`).join('');
-
-  SALE_ROWS.forEach((_,i) => {
-    document.getElementById(`u${i}`).addEventListener('change', e => {
-      sales[i].u = e.target.selectedIndex;
-    });
-  });
-}
-
-function stepQ(i, delta) {
-  sales[i].qty = Math.max(0, sales[i].qty + delta);
-  document.getElementById(`q${i}`).textContent = sales[i].qty;
 }
 
 // ============================================================
@@ -789,28 +874,29 @@ const DRAFT_KEY_SALE = 'aoyagi_draft_sale';
 
 function saveDraft() {
   try {
+    // 出荷数を最新のinput値から読み直す
+    DESTS.forEach((_,i) => {
+      const el = document.getElementById(`q${i}`);
+      if (el) sales[i].qty = parseInt(el.value)||0;
+    });
     const workDraft = {
-      date:     document.getElementById('workDate').value,
-      weather:  document.getElementById('weather').value,
-      temp:     tempVal,
-      wind:     windVal,
-      feeling:  feeling,
-      alerts:   Array.from(alertSelected),
+      date: document.getElementById('workDate').value,
+      weather: document.getElementById('weather').value,
+      temp: tempVal, wind: windVal, feeling,
+      alerts: Array.from(alertSelected),
       alertText: document.getElementById('alertText').value,
-      entries:  entries,
-      savedAt:  new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}),
+      entries,
+      savedAt: new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}),
     };
     const saleDraft = {
-      date:  document.getElementById('saleDate').value,
-      sales: sales,
-      memo:  document.getElementById('saleMemo').value,
+      date: document.getElementById('saleDate').value,
+      sales,
+      memo: document.getElementById('saleMemo').value,
     };
     localStorage.setItem(DRAFT_KEY_WORK, JSON.stringify(workDraft));
     localStorage.setItem(DRAFT_KEY_SALE, JSON.stringify(saleDraft));
     showToast(`💾 ${workDraft.savedAt} に一時保存しました`);
-  } catch(e) {
-    showToast('❌ 保存に失敗しました');
-  }
+  } catch(e) { showToast('❌ 保存に失敗しました'); }
 }
 
 function loadDraft() {
@@ -822,12 +908,10 @@ function loadDraft() {
       document.getElementById('weather').value  = d.weather || '晴れ';
       tempVal = d.temp ?? 15; document.getElementById('tempVal').textContent = tempVal;
       windVal = d.wind ?? 3;  document.getElementById('windVal').textContent = windVal;
-      // 体感
       feeling = d.feeling || '普通';
       document.querySelectorAll('.feel-btn').forEach(b => {
         b.classList.toggle('active', b.textContent.includes(feeling));
       });
-      // 異常連絡
       alertSelected.clear();
       (d.alerts || []).forEach(v => alertSelected.add(v));
       document.querySelectorAll('.alert-btn').forEach(b => {
@@ -835,24 +919,20 @@ function loadDraft() {
         b.classList.toggle('active', alertSelected.has(label));
       });
       document.getElementById('alertText').value = d.alertText || '';
-      // 作業エントリー
       entries = d.entries || [];
-      if (entries.length === 0) addEntry();
-      else renderEntries();
+      if (entries.length === 0) addEntry(); else renderEntries();
       showToast('✅ 下書きを復元しました');
     } else {
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY_SALE) || 'null');
       if (!d) return;
       document.getElementById('saleDate').value = d.date || '';
-      sales = d.sales || SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+      sales = d.sales || DESTS.map(() => ({ qty: 0, u: 0 }));
       renderSales();
       document.getElementById('saleMemo').value = d.memo || '';
       showToast('✅ 下書きを復元しました');
     }
     document.getElementById('draftBar').classList.add('hidden');
-  } catch(e) {
-    showToast('❌ 復元に失敗しました: ' + e.message);
-  }
+  } catch(e) { showToast('❌ 復元に失敗しました: ' + e.message); }
 }
 
 function clearDraft() {
@@ -864,23 +944,18 @@ function clearDraft() {
 
 function checkDraft() {
   const w = localStorage.getItem(DRAFT_KEY_WORK);
-  const s = localStorage.getItem(DRAFT_KEY_SALE);
-  if (!w && !s) return;
+  if (!w) return;
   try {
-    const d = JSON.parse(w || 'null');
-    const savedAt = d?.savedAt || '';
-    const bar = document.getElementById('draftBar');
+    const d = JSON.parse(w);
     document.getElementById('draftMsg').textContent =
-      `💾 下書きあり${savedAt ? '（' + savedAt + ' 保存）' : ''}`;
-    bar.classList.remove('hidden');
+      `💾 下書きあり${d.savedAt ? '（' + d.savedAt + ' 保存）' : ''}`;
+    document.getElementById('draftBar').classList.remove('hidden');
   } catch(e) {}
 }
 
 // ============================================================
-// GAS連携送信
+// 送信
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
-
 async function submit() {
   const btn = document.querySelector('.submit-btn');
   btn.style.background = '#888';
@@ -889,76 +964,62 @@ async function submit() {
 
   try {
     let payload;
+    let userId = 'LIFF';
+    try { userId = (await liff.getProfile()).userId; } catch(e) {}
 
     if (currentTab === 'work') {
-      // ---- 日報ペイロード ----
-      const dateVal = document.getElementById('workDate').value;
-      const weather = document.getElementById('weather').value;
-      const alertText = document.getElementById('alertText').value.trim();
-      const alertTags = Array.from(alertSelected).join('・');
-      const alertFull = [alertTags, alertText].filter(Boolean).join(' / ') || 'なし';
+      const dateVal    = document.getElementById('workDate').value;
+      const weather    = document.getElementById('weather').value;
+      const alertText  = document.getElementById('alertText').value.trim();
+      const alertTags  = Array.from(alertSelected).join('・');
+      const alertFull  = [alertTags, alertText].filter(Boolean).join(' / ') || 'なし';
 
-      // LINEユーザー名→作業者IDは今後マッピング、今は記録者として送る
-      let userId = 'LIFF';
-      try { userId = (await liff.getProfile()).userId; } catch(e) {}
-
-      // 作業エントリーを整形
       const workEntries = entries.map(e => ({
-        worker: WORKERS[e.w],
+        worker: WORKERS[e.w] ? WORKERS[e.w].name : '—',
         field:  FIELDS[e.f],
-        crop:   CROPS[e.c],
+        crop:   CROPS[e.c]  ? CROPS[e.c].name   : '—',
         work:   e.k,
         hours:  e.h,
       }));
 
       payload = {
-        type:        'daily',
-        date:        dateVal,
-        weather:     weather,
-        temperature: tempVal,
-        wind_speed:  windVal,
-        body_feeling: feeling,
-        alerts:      alertFull,
-        user_id:     userId,
-        work_entries: workEntries,
+        type: 'daily', date: dateVal, weather,
+        temperature: tempVal, wind_speed: windVal,
+        body_feeling: feeling, alerts: alertFull,
+        user_id: userId, work_entries: workEntries,
         input_method: 'LIFF',
       };
-
     } else {
-      // ---- 出荷ペイロード ----
+      // 出荷数を最新値から読み直す
+      DESTS.forEach((_,i) => {
+        const el = document.getElementById(`q${i}`);
+        if (el) sales[i].qty = parseInt(el.value)||0;
+      });
       const dateVal = document.getElementById('saleDate').value;
       const memo    = document.getElementById('saleMemo').value.trim();
-      const saleRows = SALE_ROWS.map((dest, i) => ({
-        dest: dest,
-        qty:  sales[i].qty,
-        unit: UNITS[sales[i].u],
+      const saleRows = DESTS.map((dest, i) => ({
+        dest: dest.name,
+        qty:  sales[i] ? sales[i].qty : 0,
+        unit: UNITS[sales[i] ? sales[i].u : 0],
       })).filter(r => r.qty > 0);
 
       payload = {
-        type:      'sales',
-        date:      dateVal,
-        sales:     saleRows,
-        memo:      memo,
+        type: 'sales', date: dateVal, sales: saleRows, memo,
         input_method: 'LIFF',
       };
     }
 
-    // GASに送信
-    // no-cors: レスポンスは読めないが送信は届く。グループ通知で確認。
     await fetch(GAS_URL, {
-      method:  'POST',
-      mode:    'no-cors',
-      headers: { 'Content-Type': 'text/plain' },  // no-corsではapplication/jsonは不可
-      body:    JSON.stringify(payload),
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify(payload),
     });
 
     const msg = currentTab === 'work'
       ? `✅ 日報を送信しました（${entries.length}件）\nLINEグループに通知されます`
       : `🚚 出荷データを送信しました\nLINEグループに通知されます`;
-
     showToast(msg);
 
-    // 下書き削除＋フォームリセット
     localStorage.removeItem(DRAFT_KEY_WORK);
     localStorage.removeItem(DRAFT_KEY_SALE);
     document.getElementById('draftBar').classList.add('hidden');
@@ -970,7 +1031,7 @@ async function submit() {
       entries = [];
       addEntry();
     } else {
-      sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+      sales = DESTS.map(() => ({ qty: 0, u: 0 }));
       renderSales();
       document.getElementById('saleMemo').value = '';
     }
