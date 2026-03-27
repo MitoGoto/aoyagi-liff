@@ -987,49 +987,87 @@ function checkDraft() {
 let pesticideMaster = [];  // 農薬マスタキャッシュ
 let pestTempVal = 20;
 
+// GASのGETはCORSで直接fetchできないため、scriptタグ注入（JSONP風）で取得
+function loadMastersViaScript(callback) {
+  const callbackName = '_gasCallback_' + Date.now();
+  window[callbackName] = function(data) {
+    delete window[callbackName];
+    document.head.removeChild(script);
+    callback(null, data);
+  };
+  const script = document.createElement('script');
+  // GASはcallbackパラメータ非対応のため、代わりにiframe+postMessageを使う
+  // → より確実な方法: fetchをmode:'cors'で試み、失敗時はフォールバック
+  delete window[callbackName];
+  document.head.removeChild && script.parentNode && script.parentNode.removeChild(script);
+  callback(new Error('JSONP不可'), null);
+}
+
 async function loadMasters() {
   try {
-    const res  = await fetch(GAS_URL + '?action=getMasters');
+    // GASのWebアプリはmode:'cors'でGETできる（デプロイ設定が「全員」であれば）
+    const res = await fetch(GAS_URL + '?action=getMasters', {
+      method: 'GET',
+      mode: 'cors',
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-
-    // 担当者ドロップダウン（防除タブ）
-    const pWorkerEl = document.getElementById('pestWorker');
-    pWorkerEl.innerHTML = (data.workers || []).map(w =>
-      `<option value="${w.id}">${w.name}</option>`
-    ).join('');
-
-    // 区画ドロップダウン（防除タブ）
-    const pFieldEl = document.getElementById('pestField');
-    pFieldEl.innerHTML = FIELDS.map(f => `<option>${f}</option>`).join('');
-
-    // 農薬マスタ
-    pesticideMaster = data.pesticides || [];
-    if (pesticideMaster.length > 0) {
-      const sel = document.getElementById('pestCd');
-      // 区分ごとにグループ化
-      const grouped = {};
-      pesticideMaster.forEach(p => {
-        const g = p.kubun || 'その他';
-        if (!grouped[g]) grouped[g] = [];
-        grouped[g].push(p);
-      });
-      sel.innerHTML = Object.entries(grouped).map(([g, ps]) =>
-        `<optgroup label="${g}">${ps.map(p =>
-          `<option value="${p.cd}">${p.name}（${p.irac || '-'}）</option>`
-        ).join('')}</optgroup>`
-      ).join('');
-      document.getElementById('pestMasterLoading').classList.add('hidden');
-      document.getElementById('pestSelectWrap').classList.remove('hidden');
-      onPestSelect();
-    }
-
-    // 防除実績から使用回数バナーを更新
-    updatePestCountBanner();
-
+    _applyMasters(data);
   } catch(e) {
-    console.warn('マスタ取得失敗:', e);
-    document.getElementById('pestMasterLoading').textContent = '⚠️ マスタ取得失敗（オフライン？）';
+    console.warn('getMasters cors失敗、no-cors POSTで再試行:', e);
+    // フォールバック: マスタなしでローカル定義を使う
+    _applyMasters({ workers: null, crops: null, dests: null, pesticides: null });
   }
+}
+
+function _applyMasters(data) {
+  // 担当者ドロップダウン（防除タブ）
+  const pWorkerEl = document.getElementById('pestWorker');
+  const workerList = data.workers && data.workers.length > 0
+    ? data.workers
+    : WORKERS.map((name, i) => ({ id: String(i), name }));
+  pWorkerEl.innerHTML = workerList.map(w =>
+    `<option value="${w.id}">${w.name}</option>`
+  ).join('');
+
+  // 区画ドロップダウン（防除タブ）
+  const pFieldEl = document.getElementById('pestField');
+  pFieldEl.innerHTML = FIELDS.map(f => `<option>${f}</option>`).join('');
+
+  // 農薬マスタ
+  pesticideMaster = data.pesticides && data.pesticides.length > 0
+    ? data.pesticides
+    : [];
+
+  if (pesticideMaster.length > 0) {
+    const sel = document.getElementById('pestCd');
+    const grouped = {};
+    pesticideMaster.forEach(p => {
+      const g = p.kubun || 'その他';
+      if (!grouped[g]) grouped[g] = [];
+      grouped[g].push(p);
+    });
+    sel.innerHTML = Object.entries(grouped).map(([g, ps]) =>
+      `<optgroup label="${g}">${ps.map(p =>
+        `<option value="${p.cd}">${p.name}（IRAC:${p.irac || '-'}）</option>`
+      ).join('')}</optgroup>`
+    ).join('');
+    document.getElementById('pestMasterLoading').classList.add('hidden');
+    document.getElementById('pestSelectWrap').classList.remove('hidden');
+    onPestSelect();
+  } else {
+    // 農薬マスタ取得失敗時: 手入力モードにフォールバック
+    document.getElementById('pestMasterLoading').innerHTML =
+      '⚠️ 農薬マスタ取得失敗。<br>薬品名を直接入力してください。';
+    // 手入力フィールドを表示
+    const wrap = document.getElementById('pestSelectWrap');
+    wrap.classList.remove('hidden');
+    document.getElementById('pestCd').parentElement.innerHTML =
+      '<input id="pestCd" type="text" placeholder="薬品名を入力（例: ダントツ水溶剤）" ' +
+      'style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">';
+  }
+
+  updatePestCountBanner();
 }
 
 function onPestSelect() {
@@ -1048,13 +1086,26 @@ function onPestSelect() {
 }
 
 async function updatePestCountBanner() {
-  const cd  = document.getElementById('pestCd').value;
-  if (!cd) return;
+  const banner = document.getElementById('pestCountBanner');
+  const cdEl = document.getElementById('pestCd');
+  const cd = cdEl ? cdEl.value : '';
+  if (!cd) { banner.style.display = 'none'; return; }
+
+  // まずキャッシュから上限だけ即時表示
+  const pest = pesticideMaster.find(p => p.cd === cd);
+  if (pest && pest.limit) {
+    banner.style.display = 'block';
+    banner.style.background = '#e8f5e9';
+    banner.style.color = '#2e7d32';
+    banner.textContent = `ℹ️ ${pest.name} — 使用上限: ${pest.limit}回`;
+  }
+
+  // GASから実績回数を取得（CORS成功時のみ上書き）
   try {
-    const res  = await fetch(GAS_URL + '?action=getPesticideStatus');
+    const res  = await fetch(GAS_URL + '?action=getPesticideStatus', { mode: 'cors' });
+    if (!res.ok) return;
     const data = await res.json();
     const found = (data.status || []).find(s => s.薬品CD === cd);
-    const banner = document.getElementById('pestCountBanner');
     if (!found || found.使用上限回数 === null) { banner.style.display = 'none'; return; }
     const { 当年実施回数: done, 使用上限回数: limit, 残り: left, 超過: over, 上限到達: reached } = found;
     banner.style.display = 'block';
@@ -1068,7 +1119,7 @@ async function updatePestCountBanner() {
       banner.style.background = '#e8f5e9'; banner.style.color = '#2e7d32';
       banner.textContent = `✅ 使用回数: ${done}回 / 上限${limit}回（残り${left}回）`;
     }
-  } catch(e) { /* 無視 */ }
+  } catch(e) { /* GAS取得失敗時はキャッシュ表示のまま */ }
 }
 
 function stepPest(id, delta) {
