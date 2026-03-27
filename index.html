@@ -650,9 +650,11 @@
 // ============================================================
 // データ定義
 // ============================================================
-const WORKERS = ['①匡彦','②絵瑠','③基貴','④ゆか','⑤まゆこ','⑥良枝','⑦賢一','⑧たかお','⑨たつや','⑩恒川','⑪ゆきの'];
+// 作業者・区画・作物（ハードコード — GAS取得失敗時のフォールバック）
+// W001興津ゆかは稼働×のため除外
+let WORKERS = ['青柳匡彦','青柳絵瑠','藤井基貴','麻友子','良枝','賢一','孝雄','達也','恒川','渡辺ゆき乃','桜庭裕紀子','花島夢美','松本美帆','小澤'];
 const FIELDS  = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
-const CROPS   = ['ケール','もものすけ','さつまいも','トレビス','その他'];
+let CROPS   = ['ケール','もものすけ','さつまいも','トレビス','その他'];
 // 作業グループ定義（大項目: [中項目, ...]）
 const WORK_GROUPS = [
   { label: '🌾 収穫・出荷準備', items: ['収穫（開始期）','収穫（本格）','収穫（拾い獲り）','選別調整','計量','袋詰め','ラベル貼付','箱詰め','出荷準備'] },
@@ -668,6 +670,23 @@ const WORK_GROUPS = [
 const WORKS = WORK_GROUPS.flatMap(g => g.items);
 const DESTS   = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
 const UNITS   = ['袋','ケース','個','kg'];
+
+// 農薬マスタ（ハードコード — GAS取得失敗時のフォールバック）
+// gas_schedule.gsの農薬マスタと同期して更新してください
+const PESTICIDE_FALLBACK = [
+  { cd:'P001', name:'Zボルドー',               kubun:'殺菌', irac:'',    target:'炭疽細菌病他',                          dilution:'500倍',        timing:'',        limit:1,  ingredient:'' },
+  { cd:'P002', name:'ダントツ水溶剤',          kubun:'殺虫', irac:'4A',  target:'アブラムシ類',                          dilution:'2000〜4000倍', timing:'収穫7日前', limit:3, ingredient:'クロチアニジン' },
+  { cd:'P003', name:'グレーシア乳剤',          kubun:'殺虫', irac:'30',  target:'コナガ、アオムシ、アザミウマ',           dilution:'3000倍',       timing:'収穫7日前', limit:2, ingredient:'フルキサメタミド' },
+  { cd:'P004', name:'ディアナSC',              kubun:'殺虫', irac:'5',   target:'コナガ、アザミウマ類、ハスモンヨトウ',   dilution:'2500〜5000倍', timing:'収穫前日',  limit:2, ingredient:'スピネトラム' },
+  { cd:'P005', name:'トランスフォームフロアブル',kubun:'殺虫', irac:'4C',  target:'アブラムシ類',                          dilution:'2000倍',       timing:'収穫前日',  limit:3, ingredient:'スルホキサフロル' },
+  { cd:'P006', name:'プロフレアSC',            kubun:'殺虫', irac:'30',  target:'コナガ、アオムシ、キスジノミハムシ',     dilution:'2000〜4000倍', timing:'収穫前日',  limit:3, ingredient:'プロフラニリド' },
+  { cd:'P007', name:'アニキ乳剤',              kubun:'殺虫', irac:'6',   target:'コナガ、ハスモンヨトウ、ハモグリバエ',   dilution:'1000〜2000倍', timing:'収穫前日',  limit:3, ingredient:'レビメクチン' },
+  { cd:'P008', name:'ウララDF',                kubun:'殺虫', irac:'29',  target:'アブラムシ類',                          dilution:'4000倍',       timing:'収穫前日',  limit:2, ingredient:'フロニカミド' },
+  { cd:'P009', name:'フィールドマスト',        kubun:'殺虫', irac:'4E',  target:'コナガ、ハスモンヨトウ、ハモグリバエ',   dilution:'4000倍',       timing:'収穫前日',  limit:2, ingredient:'スルホキサフロル' },
+  { cd:'P010', name:'ライメイフロアブル',      kubun:'殺菌', irac:'',    target:'白さび病',                              dilution:'',             timing:'収穫3日前', limit:3, ingredient:'' },
+  { cd:'P011', name:'プレバソンフロアブル5',   kubun:'殺虫', irac:'28',  target:'コナガ、ハモグリバエ類',                 dilution:'2000倍',       timing:'収穫前日',  limit:2, ingredient:'クロラントラニリプロール' },
+  { cd:'P012', name:'ゼンターリ顆粒水和剤',   kubun:'殺虫', irac:'11A', target:'コナガ、オオタバコガ、ヨトウ',           dilution:'1000〜2000倍', timing:'収穫前日',  limit:null, ingredient:'' },
+];
 
 let currentTab = 'work';
 let feeling    = '普通';
@@ -841,18 +860,17 @@ function removeSale(i) {
 }
 
 // 出荷先ラベル（固定5行）
-const SALE_ROWS = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
+let SALE_ROWS = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','その他'];
 
 function renderSales() {
   const el = document.getElementById('saleList');
   el.innerHTML = SALE_ROWS.map((dest, i) => `
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
       <div style="width:90px;font-size:13px;font-weight:700;color:var(--green);flex-shrink:0">${dest}</div>
-      <div class="stepper" style="flex:1">
-        <button onclick="stepQ(${i},-1)">−</button>
-        <span id="q${i}">${sales[i].qty}</span>
-        <button onclick="stepQ(${i},1)">＋</button>
-      </div>
+      <input type="number" id="q${i}" value="${sales[i].qty}"
+        min="0" inputmode="numeric" pattern="[0-9]*"
+        style="flex:1;padding:12px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;font-family:inherit;text-align:right;background:white"
+        oninput="sales[${i}].qty=parseInt(this.value)||0">
       <div class="select-wrap" style="width:68px;flex-shrink:0">
         <select id="u${i}" style="padding:10px 6px;font-size:13px">
           ${UNITS.map((u,j)=>`<option${j===sales[i].u?' selected':''}>${u}</option>`).join('')}
@@ -865,11 +883,6 @@ function renderSales() {
       sales[i].u = e.target.selectedIndex;
     });
   });
-}
-
-function stepQ(i, delta) {
-  sales[i].qty = Math.max(0, sales[i].qty + delta);
-  document.getElementById(`q${i}`).textContent = sales[i].qty;
 }
 
 // ============================================================
@@ -1014,14 +1027,39 @@ async function loadMasters() {
     const data = await res.json();
     _applyMasters(data);
   } catch(e) {
-    console.warn('getMasters cors失敗、no-cors POSTで再試行:', e);
-    // フォールバック: マスタなしでローカル定義を使う
+    console.warn('getMasters失敗、ハードコードフォールバック使用:', e);
     _applyMasters({ workers: null, crops: null, dests: null, pesticides: null });
   }
 }
 
 function _applyMasters(data) {
-  // 担当者ドロップダウン（防除タブ）
+  // ── 作業者リストを更新（GAS取得成功時のみ）──
+  if (data.workers && data.workers.length > 0) {
+    // グローバルなWORKERS配列を上書き（作業ログのrenderEntriesで参照される）
+    WORKERS.length = 0;
+    data.workers.forEach(w => WORKERS.push(w.name));
+    // 既存エントリーを再描画
+    renderEntries();
+  }
+
+  // ── 作物リストを更新 ──
+  if (data.crops && data.crops.length > 0) {
+    CROPS.length = 0;
+    data.crops.forEach(c => CROPS.push(c.name));
+    renderEntries();
+  }
+
+  // ── 販売先（出荷タブ）を更新 ──
+  if (data.dests && data.dests.length > 0) {
+    SALE_ROWS.length = 0;
+    data.dests.forEach(d => SALE_ROWS.push(d.name));
+    // salesも更新された行数に合わせて初期化
+    while (sales.length < SALE_ROWS.length) sales.push({ qty: 0, u: 0 });
+    sales.length = SALE_ROWS.length;
+    renderSales();
+  }
+
+  // ── 防除タブ: 担当者ドロップダウン ──
   const pWorkerEl = document.getElementById('pestWorker');
   const workerList = data.workers && data.workers.length > 0
     ? data.workers
@@ -1030,42 +1068,31 @@ function _applyMasters(data) {
     `<option value="${w.id}">${w.name}</option>`
   ).join('');
 
-  // 区画ドロップダウン（防除タブ）
+  // ── 防除タブ: 区画ドロップダウン ──
   const pFieldEl = document.getElementById('pestField');
   pFieldEl.innerHTML = FIELDS.map(f => `<option>${f}</option>`).join('');
 
-  // 農薬マスタ
-  pesticideMaster = data.pesticides && data.pesticides.length > 0
+  // ── 農薬マスタ — GAS取得成功時はそちらを、失敗時はハードコードを使う ──
+  pesticideMaster = (data.pesticides && data.pesticides.length > 0)
     ? data.pesticides
-    : [];
+    : PESTICIDE_FALLBACK;
 
-  if (pesticideMaster.length > 0) {
-    const sel = document.getElementById('pestCd');
-    const grouped = {};
-    pesticideMaster.forEach(p => {
-      const g = p.kubun || 'その他';
-      if (!grouped[g]) grouped[g] = [];
-      grouped[g].push(p);
-    });
-    sel.innerHTML = Object.entries(grouped).map(([g, ps]) =>
-      `<optgroup label="${g}">${ps.map(p =>
-        `<option value="${p.cd}">${p.name}（IRAC:${p.irac || '-'}）</option>`
-      ).join('')}</optgroup>`
-    ).join('');
-    document.getElementById('pestMasterLoading').classList.add('hidden');
-    document.getElementById('pestSelectWrap').classList.remove('hidden');
-    onPestSelect();
-  } else {
-    // 農薬マスタ取得失敗時: 手入力モードにフォールバック
-    document.getElementById('pestMasterLoading').innerHTML =
-      '⚠️ 農薬マスタ取得失敗。<br>薬品名を直接入力してください。';
-    // 手入力フィールドを表示
-    const wrap = document.getElementById('pestSelectWrap');
-    wrap.classList.remove('hidden');
-    document.getElementById('pestCd').parentElement.innerHTML =
-      '<input id="pestCd" type="text" placeholder="薬品名を入力（例: ダントツ水溶剤）" ' +
-      'style="width:100%;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">';
-  }
+  // 農薬ドロップダウン生成
+  const sel = document.getElementById('pestCd');
+  const grouped = {};
+  pesticideMaster.forEach(p => {
+    const g = p.kubun || 'その他';
+    if (!grouped[g]) grouped[g] = [];
+    grouped[g].push(p);
+  });
+  sel.innerHTML = Object.entries(grouped).map(([g, ps]) =>
+    `<optgroup label="${g}">${ps.map(p =>
+      `<option value="${p.cd}">${p.name}（IRAC:${p.irac || '-'}）</option>`
+    ).join('')}</optgroup>`
+  ).join('');
+  document.getElementById('pestMasterLoading').classList.add('hidden');
+  document.getElementById('pestSelectWrap').classList.remove('hidden');
+  onPestSelect();
 
   updatePestCountBanner();
 }
@@ -1216,7 +1243,7 @@ async function submit() {
       const memo    = document.getElementById('saleMemo').value.trim();
       const saleRows = SALE_ROWS.map((dest, i) => ({
         dest: dest,
-        qty:  sales[i].qty,
+        qty:  parseInt(document.getElementById(`q${i}`)?.value || '0') || 0,
         unit: UNITS[sales[i].u],
       })).filter(r => r.qty > 0);
 
