@@ -643,10 +643,12 @@ const WORKERS_DEFAULT = [
   {id:'W010',name:'花島 夢美',type:'W'},{id:'W011',name:'松本 美帆',type:'W'},{id:'W012',name:'小澤',type:'W'},
 ];
 const CROPS_DEFAULT = [
-  {cd:'KL',name:'ケール'},{cd:'MO',name:'もものすけ'},{cd:'SP',name:'さつまいも'},{cd:'TR',name:'トレビス'},{cd:'OT',name:'その他'}
+  {cd:'KL',name:'ケール'},{cd:'HKL',name:'ハウスケール'},{cd:'MO',name:'もものすけ'},
+  {cd:'SP',name:'さつまいも'},{cd:'TR',name:'トレビス'},{cd:'OT',name:'そのほか'}
 ];
 const DESTS_DEFAULT = [
-  {cd:'LR',name:'ランドローム'},{cd:'BS',name:'ベイシア佐倉店'},{cd:'SA',name:'さくらノーム'},{cd:'SG',name:'シェアガーデン'},{cd:'OT',name:'その他'}
+  {cd:'SG',name:'シャアガーデン',unit:'5kg'},{cd:'LR',name:'ランドローム',unit:'袋'},
+  {cd:'BS',name:'ベイシア',unit:'袋'},{cd:'SA',name:'さくらノーム',unit:'袋'}
 ];
 
 let currentTab = 'work';
@@ -830,7 +832,12 @@ function updateTotal() {
 // ============================================================
 function renderSales() {
   const el = document.getElementById('saleList');
-  el.innerHTML = DESTS.map((dest, i) => `
+  el.innerHTML = DESTS.map((dest, i) => {
+    // マスタのunit列をデフォルト選択に使う
+    const defaultUnitIdx = Math.max(0, UNITS.indexOf(dest.unit || '袋'));
+    if (!sales[i]) sales[i] = { qty: 0, u: defaultUnitIdx };
+    const unitIdx = sales[i].u !== undefined ? sales[i].u : defaultUnitIdx;
+    return `
     <div class="sale-row">
       <div class="sale-dest">${dest.name}</div>
       <input
@@ -841,15 +848,16 @@ function renderSales() {
         min="0"
         max="9999"
         placeholder="0"
-        value="${sales[i] && sales[i].qty > 0 ? sales[i].qty : ''}"
+        value="${sales[i].qty > 0 ? sales[i].qty : ''}"
         id="q${i}"
         onchange="sales[${i}].qty = parseInt(this.value)||0"
         oninput="sales[${i}].qty = parseInt(this.value)||0"
       >
       <select class="sale-unit" id="u${i}" onchange="sales[${i}].u = this.selectedIndex">
-        ${UNITS.map((u,j)=>`<option${sales[i]&&j===sales[i].u?' selected':''}>${u}</option>`).join('')}
+        ${UNITS.map((u,j)=>`<option${j===unitIdx?' selected':''}>${u}</option>`).join('')}
       </select>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
