@@ -190,20 +190,8 @@
     </div>
   </div>
   <div class="section">
-    <div class="section-title">⚖️ 単位内容量設定</div>
-    <div class="form-row col2">
-      <div class="form-group">
-        <label>袋 (g)</label>
-        <input type="number" id="bagGram" value="100" min="1" step="1" inputmode="numeric" oninput="recalcSale()">
-      </div>
-      <div class="form-group">
-        <label>ケース (g)</label>
-        <input type="number" id="caseGram" value="5000" min="1" step="100" inputmode="numeric" oninput="recalcSale()">
-      </div>
-    </div>
-  </div>
-  <div class="section">
     <div class="section-title">📦 出荷内容</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">各出荷先の数量・単位・内容量を入力してください</p>
     <div id="saleList"></div>
     <div class="sale-total-bar" id="saleTotalBar">合計: —</div>
   </div>
@@ -229,7 +217,7 @@
         <div class="select-wrap"><select id="pestWorker"></select></div>
       </div>
     </div>
-    <div class="form-row col3">
+    <div class="form-row col2">
       <div class="form-group">
         <label>天候</label>
         <div class="select-wrap">
@@ -246,10 +234,6 @@
           <button onclick="stepPest('temp',1)">＋</button>
         </div>
       </div>
-      <div class="form-group">
-        <label>区画</label>
-        <div class="select-wrap"><select id="pestField"></select></div>
-      </div>
     </div>
   </div>
   <div class="section">
@@ -265,16 +249,11 @@
     <div id="pestCountBanner" class="count-banner" style="display:none"></div>
   </div>
   <div class="section">
-    <div class="section-title">📊 散布詳細</div>
-    <div class="form-row col2">
-      <div class="form-group">
-        <label>散布面積 (a)</label>
-        <input type="number" id="pestArea" min="0" step="0.1" inputmode="decimal" placeholder="例: 5.0">
-      </div>
-      <div class="form-group">
-        <label>散布量 (L)</label>
-        <input type="number" id="pestVolume" min="0" step="1" inputmode="numeric" placeholder="例: 100">
-      </div>
+    <div class="section-title">🗺 圃場別 散布量入力</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">散布した圃場の量(L)を入力してください。面積は自動表示。</p>
+    <div id="pestFieldList"></div>
+    <div style="background:#e8f5e9;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;font-weight:700;color:#2e7d32" id="pestTotalBar">
+      合計: 散布量 — L　/　面積 — a
     </div>
   </div>
   <div class="section">
@@ -535,73 +514,121 @@ function toggleAlert(btn, val) {
 // ============================================================
 // 出荷
 // ============================================================
-function getUnitGram(unitIdx) {
-  const u = UNITS[unitIdx] || '袋';
-  if (u === '袋')   return parseInt(document.getElementById('bagGram').value)  || 100;
-  if (u === 'ケース') return parseInt(document.getElementById('caseGram').value) || 5000;
-  if (u === 'kg')   return 1000;
-  if (u === '個')   return 0;
-  return 0;
-}
+// sales配列: [{ qty:0, unit:'袋', gram:100 }, ...]
 function recalcSale() {
   const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
   let totalKg = 0, totalAmt = 0;
   SALE_ROWS.forEach((_, i) => {
-    const qtyEl = document.getElementById(`q${i}`);
-    const qty   = parseInt(qtyEl ? qtyEl.value : 0) || 0;
-    const uEl   = document.getElementById(`u${i}`);
-    const uIdx  = uEl ? uEl.selectedIndex : 0;
-    const gram  = getUnitGram(uIdx);
-    const kg    = qty * gram / 1000;
-    totalKg += kg;
-    if (unitPrice > 0 && gram > 0) {
-      totalAmt += qty * gram / 100 * unitPrice;
-    }
+    const qtyEl  = document.getElementById(`q${i}`);
+    const gramEl = document.getElementById(`gram${i}`);
+    const qty    = parseInt(qtyEl ? qtyEl.value : 0) || 0;
+    const gram   = parseInt(gramEl ? gramEl.value : 100) || 0;
+    const kg     = qty * gram / 1000;
+    totalKg  += kg;
+    totalAmt += (unitPrice > 0 && gram > 0) ? qty * gram / 100 * unitPrice : 0;
     const calcEl = document.getElementById(`calc${i}`);
     if (calcEl) {
       calcEl.textContent = gram > 0
-        ? `${(kg).toFixed(2)}kg${unitPrice > 0 ? ' / ¥' + Math.round(qty * gram / 100 * unitPrice).toLocaleString() : ''}`
+        ? `→ ${kg.toFixed(2)}kg${unitPrice > 0 ? ' / ¥' + Math.round(qty * gram / 100 * unitPrice).toLocaleString() : ''}`
         : '';
     }
+    if (!sales[i]) sales[i] = { qty: 0, unit: '袋', gram: 100 };
+    sales[i].qty  = qty;
+    sales[i].gram = gram;
   });
   const bar = document.getElementById('saleTotalBar');
   bar.textContent = `合計: ${totalKg.toFixed(2)}kg` +
     (unitPrice > 0 ? ` / ¥${Math.round(totalAmt).toLocaleString()}` : '');
 }
 
+function _defaultGram(unit) {
+  if (unit === '袋')    return 100;
+  if (unit === 'ケース') return 5000;
+  if (unit === 'kg')   return 1000;
+  return 100;
+}
+
 function renderSales() {
   const el = document.getElementById('saleList');
-  el.innerHTML = SALE_ROWS.map((dest, i) => `
-    <div class="sale-row">
-      <div class="sale-dest">${dest}</div>
-      <input type="number" id="q${i}" value="${sales[i] ? sales[i].qty : 0}"
-        min="0" inputmode="numeric" pattern="[0-9]*"
-        style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"
-        oninput="sales[${i}]=(sales[${i}]||{qty:0,u:0}); sales[${i}].qty=parseInt(this.value)||0; recalcSale()">
-      <div class="select-wrap" style="width:62px;flex-shrink:0">
-        <select id="u${i}" style="padding:8px 4px;font-size:12px"
-          onchange="sales[${i}]=(sales[${i}]||{qty:0,u:0}); sales[${i}].u=this.selectedIndex; recalcSale()">
-          ${UNITS.map((u,j)=>`<option${sales[i]&&j===sales[i].u?' selected':''}>${u}</option>`).join('')}
-        </select>
+  el.innerHTML = SALE_ROWS.map((dest, i) => {
+    const s    = sales[i] || { qty: 0, unit: '袋', gram: 100 };
+    const gram = s.gram || _defaultGram(s.unit || '袋');
+    return `
+    <div style="background:var(--green-pale);border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid var(--green-light)">
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">${dest}</div>
+      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+        <div style="flex:2;min-width:80px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">数量</div>
+          <input type="number" id="q${i}" value="${s.qty}"
+            min="0" inputmode="numeric" pattern="[0-9]*"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"
+            oninput="recalcSale()">
+        </div>
+        <div style="flex:1;min-width:60px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">単位</div>
+          <div class="select-wrap">
+            <select id="u${i}" style="padding:10px 24px 10px 8px;font-size:13px"
+              onchange="document.getElementById('gram${i}').value=_defaultGram(this.value);recalcSale()">
+              ${UNITS.map(u=>`<option${u===s.unit?' selected':''}>${u}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div style="flex:1;min-width:70px">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">内容量(g)</div>
+          <input type="number" id="gram${i}" value="${gram}"
+            min="1" inputmode="numeric"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;text-align:right"
+            oninput="recalcSale()">
+        </div>
       </div>
-    </div>
-    <div class="sale-calc" id="calc${i}"></div>`).join('');
-  SALE_ROWS.forEach((_,i) => {
-    const uEl = document.getElementById(`u${i}`);
-    if (uEl) uEl.addEventListener('change', () => recalcSale());
-  });
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right" id="calc${i}"></div>
+    </div>`;
+  }).join('');
   recalcSale();
 }
 
 // ============================================================
-// 防除
+// 防除 — 圃場別散布量
 // ============================================================
+let fieldMaster = [];
+
+function renderPestFields() {
+  const el = document.getElementById('pestFieldList');
+  if (!fieldMaster.length) {
+    el.innerHTML = '<p style="color:var(--muted);font-size:13px">圃場情報を読み込み中...</p>';
+    return;
+  }
+  el.innerHTML = fieldMaster.map((f, i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
+      <div style="flex:0 0 90px">
+        <div style="font-size:13px;font-weight:700;color:var(--green)">${f.name}</div>
+        <div style="font-size:10px;color:var(--muted)">${f.area ? f.area+'a' : '面積未登録'}</div>
+      </div>
+      <input type="number" id="pv${i}" value=""
+        min="0" step="1" inputmode="numeric" placeholder="—"
+        style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;text-align:right;font-family:inherit"
+        oninput="recalcPestTotal()">
+      <div style="font-size:12px;color:var(--muted);flex:0 0 20px">L</div>
+    </div>`).join('');
+  recalcPestTotal();
+}
+
+function recalcPestTotal() {
+  let totalVol = 0, totalArea = 0;
+  fieldMaster.forEach((f, i) => {
+    const v = parseFloat(document.getElementById(`pv${i}`)?.value || 0) || 0;
+    if (v > 0) { totalVol += v; totalArea += (f.area || 0); }
+  });
+  const bar = document.getElementById('pestTotalBar');
+  if (bar) bar.textContent =
+    `合計: 散布量 ${totalVol > 0 ? totalVol.toFixed(0) : '—'} L　/　面積 ${totalArea > 0 ? totalArea.toFixed(2) : '—'} a`;
+}
+
 function onPestSelect() {
   const cd   = document.getElementById('pestCd').value;
   const pest = pesticideMaster.find(p => p.cd === cd);
   if (!pest) return;
-  const textEl = document.getElementById('pestInfoText');
-  textEl.innerHTML =
+  document.getElementById('pestInfoText').innerHTML =
     `<b>${pest.name}</b>（IRAC: ${pest.irac||'—'}）<br>` +
     `対象: ${pest.target||'—'}<br>` +
     `希釈: ${pest.dilution||'—'}　使用時期: ${pest.timing||'—'}<br>` +
@@ -609,10 +636,11 @@ function onPestSelect() {
   document.getElementById('pestInfo').style.display = 'block';
   updatePestCountBanner();
 }
+
 async function updatePestCountBanner() {
   const banner = document.getElementById('pestCountBanner');
-  const cdEl = document.getElementById('pestCd');
-  const cd = cdEl ? cdEl.value : '';
+  const cdEl   = document.getElementById('pestCd');
+  const cd     = cdEl ? cdEl.value : '';
   if (!cd) { banner.style.display = 'none'; return; }
   const pest = pesticideMaster.find(p => p.cd === cd);
   if (pest && pest.limit) {
@@ -623,7 +651,7 @@ async function updatePestCountBanner() {
   try {
     const res = await fetch(GAS_URL + '?action=getPesticideStatus', { mode: 'cors' });
     if (!res.ok) return;
-    const data = await res.json();
+    const data  = await res.json();
     const found = (data.status||[]).find(s => s.薬品CD === cd);
     if (!found || found.使用上限回数 === null) { banner.style.display = 'none'; return; }
     const { 当年実施回数:done, 使用上限回数:limit, 残り:left, 超過:over, 上限到達:reached } = found;
@@ -655,39 +683,46 @@ async function loadMasters() {
     _applyMasters({});
   }
 }
+
 function _applyMasters(data) {
   if (data.workers && data.workers.length > 0) {
-    WORKERS.length = 0;
-    data.workers.forEach(w => WORKERS.push(w.name));
-    renderEntries();
+    WORKERS.length = 0; data.workers.forEach(w => WORKERS.push(w.name)); renderEntries();
   }
   if (data.crops && data.crops.length > 0) {
-    CROPS.length = 0;
-    data.crops.forEach(c => CROPS.push(c.name));
-    renderEntries();
+    CROPS.length = 0; data.crops.forEach(c => CROPS.push(c.name)); renderEntries();
   }
   if (data.dests && data.dests.length > 0) {
     SALE_ROWS.length = 0;
     data.dests.forEach(d => SALE_ROWS.push(d.name));
-    while (sales.length < SALE_ROWS.length) sales.push({ qty: 0, u: 0 });
+    while (sales.length < SALE_ROWS.length) sales.push({ qty: 0, unit: '袋', gram: 100 });
     sales.length = SALE_ROWS.length;
     renderSales();
   }
-  // 防除タブ: 担当者
+  // 防除: 担当者
   const pWorkerEl = document.getElementById('pestWorker');
   const workerList = data.workers && data.workers.length > 0
-    ? data.workers : WORKERS.map((name,i) => ({ id: String(i), name }));
+    ? data.workers : WORKERS.map((name, i) => ({ id: String(i), name }));
   pWorkerEl.innerHTML = workerList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-  // 防除タブ: 区画
-  const pFieldEl = document.getElementById('pestField');
-  pFieldEl.innerHTML = FIELDS.map(f => `<option>${f}</option>`).join('');
+  // 防除: 圃場マスタ
+  if (data.fields && data.fields.length > 0) {
+    fieldMaster = data.fields.map(f => ({
+      cd:   f.cd   || f['区画CD'] || '',
+      name: f.name || f['区画名'] || f.cd || '',
+      area: parseFloat(f.area || f['面積(a)']) || 0,
+    }));
+  } else {
+    fieldMaster = FIELDS.filter(f => f !== '（なし）').map(f => ({ cd: f, name: f, area: 0 }));
+  }
+  renderPestFields();
   // 農薬マスタ
   pesticideMaster = (data.pesticides && data.pesticides.length > 0) ? data.pesticides : PESTICIDE_FALLBACK;
   const sel = document.getElementById('pestCd');
   const grouped = {};
   pesticideMaster.forEach(p => { const g = p.kubun||'その他'; if (!grouped[g]) grouped[g]=[]; grouped[g].push(p); });
-  sel.innerHTML = Object.entries(grouped).map(([g,ps]) =>
-    `<optgroup label="${g}">${ps.map(p => `<option value="${p.cd}">${p.name}（IRAC:${p.irac||'-'}）</option>`).join('')}</optgroup>`
+  sel.innerHTML = Object.entries(grouped).map(([g, ps]) =>
+    `<optgroup label="${g}">${ps.map(p =>
+      `<option value="${p.cd}">${p.name}（IRAC:${p.irac||'-'}）</option>`
+    ).join('')}</optgroup>`
   ).join('');
   document.getElementById('pestMasterLoading').classList.add('hidden');
   document.getElementById('pestSelectWrap').classList.remove('hidden');
@@ -920,30 +955,30 @@ async function submitWork() {
 }
 
 async function submitSale() {
-  const dateVal = document.getElementById('saleDate').value;
-  const memo    = document.getElementById('saleMemo').value.trim();
-  const bagGram  = parseInt(document.getElementById('bagGram').value)  || 100;
-  const caseGram = parseInt(document.getElementById('caseGram').value) || 5000;
+  const dateVal   = document.getElementById('saleDate').value;
+  const memo      = document.getElementById('saleMemo').value.trim();
   const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
-  const saleRows = SALE_ROWS.map((dest, i) => {
-    const qty  = parseInt(document.getElementById(`q${i}`)?.value||'0')||0;
-    const uIdx = document.getElementById(`u${i}`)?.selectedIndex||0;
-    const unit = UNITS[uIdx];
-    const gram = unit==='袋' ? bagGram : unit==='ケース' ? caseGram : unit==='kg' ? 1000 : 0;
+  const saleRows  = SALE_ROWS.map((dest, i) => {
+    const qty  = parseInt(document.getElementById(`q${i}`)?.value || '0') || 0;
+    const unit = document.getElementById(`u${i}`)?.value || '袋';
+    const gram = parseInt(document.getElementById(`gram${i}`)?.value || '100') || 100;
     const kg   = qty * gram / 1000;
     const amt  = unitPrice > 0 && gram > 0 ? qty * gram / 100 * unitPrice : 0;
     return { dest, qty, unit, gram_per_unit: gram, kg, amount: amt };
   }).filter(r => r.qty > 0);
+
+  if (saleRows.length === 0) { showToast('⚠️ 数量を入力してください'); return; }
+
   const payload = {
     type: 'sales', date: dateVal, sales: saleRows,
-    bag_gram: bagGram, case_gram: caseGram, unit_price_per_100g: unitPrice,
+    unit_price_per_100g: unitPrice,
     memo, input_method: 'LIFF',
   };
-  const ok = await sendToGAS(payload, `🚚 出荷データを登録しました`);
+  const ok = await sendToGAS(payload, `🚚 出荷データを登録しました（${saleRows.length}件）`);
   if (ok) {
     localStorage.removeItem(DRAFT_KEY_SALE);
     document.getElementById('draftBar').classList.add('hidden');
-    sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+    sales = SALE_ROWS.map(() => ({ qty: 0, unit: '袋', gram: 100 }));
     renderSales();
     document.getElementById('saleMemo').value = '';
     document.getElementById('saleUnitPrice').value = '';
@@ -951,30 +986,50 @@ async function submitSale() {
 }
 
 async function submitPest() {
-  const cd   = document.getElementById('pestCd').value;
-  const pest = pesticideMaster.find(p => p.cd === cd)||{};
-  const workerEl = document.getElementById('pestWorker');
+  const cd      = document.getElementById('pestCd').value;
+  const pest    = pesticideMaster.find(p => p.cd === cd) || {};
+  const workerEl= document.getElementById('pestWorker');
+
+  // 圃場別散布量を収集
+  const fields = fieldMaster
+    .map((f, i) => {
+      const v = parseFloat(document.getElementById(`pv${i}`)?.value || 0) || 0;
+      return { cd: f.cd, name: f.name, area_a: f.area || 0, volume_l: v };
+    })
+    .filter(f => f.volume_l > 0);
+
+  if (fields.length === 0) { showToast('⚠️ 少なくとも1圃場の散布量を入力してください'); return; }
+
   const payload = {
-    type: 'pesticide', input_method: 'LIFF',
+    type:           'pesticide',
+    input_method:   'LIFF',
     date:           document.getElementById('pestDate').value,
     pesticide_cd:   cd,
-    pesticide_name: pest.name||cd,
-    kubun:          pest.kubun||'',
-    dilution:       pest.dilution||'',
-    area_a:         parseFloat(document.getElementById('pestArea').value)||'',
-    volume_l:       parseFloat(document.getElementById('pestVolume').value)||'',
+    pesticide_name: pest.name || cd,
+    kubun:          pest.kubun   || '',
+    dilution:       pest.dilution || '',
     weather:        document.getElementById('pestWeather').value,
     temperature:    pestTempVal,
-    worker_id:      workerEl.value||'',
-    field_cd:       document.getElementById('pestField').value,
+    worker_id:      workerEl.value || '',
+    fields,          // 圃場別配列（縦持ちで記録）
     memo:           document.getElementById('pestMemo').value,
     user_id:        currentUserId,
   };
-  const ok = await sendToGAS(payload, '🌿 防除実績を登録しました');
+
+  const totalVol  = fields.reduce((s, f) => s + f.volume_l, 0);
+  const totalArea = fields.reduce((s, f) => s + (f.area_a || 0), 0);
+  const ok = await sendToGAS(
+    payload,
+    `🌿 防除実績を登録しました（${fields.length}圃場 / 合計${totalVol}L / ${totalArea.toFixed(1)}a）`
+  );
   if (ok) {
-    document.getElementById('pestArea').value   = '';
-    document.getElementById('pestVolume').value = '';
-    document.getElementById('pestMemo').value   = '';
+    // 入力リセット
+    fieldMaster.forEach((_, i) => {
+      const el = document.getElementById(`pv${i}`);
+      if (el) el.value = '';
+    });
+    recalcPestTotal();
+    document.getElementById('pestMemo').value = '';
     document.getElementById('pestCountBanner').style.display = 'none';
     updatePestCountBanner();
   }
