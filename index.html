@@ -839,60 +839,302 @@ async function loadEditLog() {
 
 function renderEditForm(logType, log) {
   ['editWork','editSale','editPest'].forEach(id => document.getElementById(id).classList.add('hidden'));
+
+  // ── 作業ログ修正 ─────────────────────────────────────────────
   if (logType === 'work') {
     document.getElementById('editWork').classList.remove('hidden');
+    const header = log?.header || {};
+    const workRows = log?.work_rows || [];
+
+    // 既存データからentriesを復元（なければデフォルト1行）
+    editEntries = workRows.length > 0 ? workRows.map(r => ({
+      w: Math.max(0, WORKERS.indexOf(r['作業者名'] || r['作業者ID']) ),
+      f: Math.max(0, FIELDS.indexOf(r['区画CD'] || '')),
+      c: Math.max(0, CROPS.indexOf(r['作物名'] || r['作物CD'] || '')),
+      k: r['作業名（テキスト）'] || r['作業CD'] || WORK_GROUPS[0].items[0],
+      h: (Number(r['作業時間(分)']) || 120) / 60,
+    })) : [{ w:0, f:0, c:0, k:WORK_GROUPS[0].items[0], h:2.0 }];
+
     const f = document.getElementById('editWorkFields');
     f.innerHTML = `
-      <div class="edit-field"><label>日付</label><input type="date" id="ew_date" value="${log?.date||document.getElementById('editDate').value}" class="form-group" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"></div>
-      <div class="edit-field"><label>天気</label>
-        <div class="select-wrap"><select id="ew_weather">
-          ${['晴れ','晴れ時々曇り','曇り','曇り時々雨','雨'].map(w=>`<option${log?.weather===w?' selected':''}>${w}</option>`).join('')}
-        </select></div>
+      <div class="form-row col2">
+        <div class="form-group"><label>日付</label>
+          <input type="date" id="ew_date" value="${log?.date||document.getElementById('editDate').value}"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        </div>
+        <div class="form-group"><label>天気</label>
+          <div class="select-wrap"><select id="ew_weather">
+            ${['晴れ','晴れ時々曇り','曇り','曇り時々雨','雨'].map(w =>
+              `<option${(header['天気']||'晴れ')===w?' selected':''}>${w}</option>`).join('')}
+          </select></div>
+        </div>
       </div>
-      <div class="edit-field"><label>作業内容（テキストで修正）</label>
-        <textarea id="ew_note" rows="4" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:none" placeholder="修正内容を記入（例: 収穫 太田1 ケール 2h）">${log?.summary||''}</textarea>
-      </div>`;
+      <div class="form-row col3">
+        <div class="form-group"><label>気温(℃)</label>
+          <input type="number" id="ew_temp" value="${header['気温(℃)']||15}"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        </div>
+        <div class="form-group"><label>風速(m)</label>
+          <input type="number" id="ew_wind" value="${header['風速(m/s)']||3}"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        </div>
+        <div class="form-group"><label>体感</label>
+          <div class="select-wrap"><select id="ew_feel">
+            ${['非常に寒い','寒い','普通','暑い','非常に暑い'].map(v =>
+              `<option${(header['体感']||'普通')===v?' selected':''}>${v}</option>`).join('')}
+          </select></div>
+        </div>
+      </div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin:12px 0 8px">🔨 作業内容</div>
+      <div id="editEntryList"></div>
+      <button class="add-btn" onclick="addEditEntry()" style="margin-top:8px">＋ 作業行を追加</button>`;
+    renderEditEntries();
+
+  // ── 出荷ログ修正 ─────────────────────────────────────────────
   } else if (logType === 'sale') {
     document.getElementById('editSale').classList.remove('hidden');
+    const rows   = log?.rows || [];
+    const destQtyMap = {};
+    rows.forEach(r => {
+      const dest = r['販売先名'] || r['販売先ID'] || '';
+      if (!destQtyMap[dest]) destQtyMap[dest] = { qty: 0, unit: r['単位']||'袋', gram: 100 };
+      destQtyMap[dest].qty += Number(r['数量'] || 0);
+    });
+
     const f = document.getElementById('editSaleFields');
     f.innerHTML = `
-      <div class="edit-field"><label>出荷日</label><input type="date" id="es_date" value="${log?.date||document.getElementById('editDate').value}" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"></div>
-      ${SALE_ROWS.map((dest,i)=>`
-        <div class="edit-field">
-          <label>${dest}</label>
-          <div style="display:flex;gap:8px">
-            <input type="number" id="es_q${i}" value="${log?.sales?.[i]?.qty||0}" min="0" inputmode="numeric" style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;text-align:right;font-family:inherit">
-            <div class="select-wrap" style="width:70px">
-              <select id="es_u${i}">
-                ${UNITS.map((u,j)=>`<option${log?.sales?.[i]?.u===j?' selected':''}>${u}</option>`).join('')}
-              </select>
+      <div class="form-row col2">
+        <div class="form-group"><label>出荷日</label>
+          <input type="date" id="es_date" value="${log?.date||document.getElementById('editDate').value}"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        </div>
+        <div class="form-group"><label>100gあたり単価(円)</label>
+          <input type="number" id="es_price" value="" min="0" inputmode="numeric"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"
+            placeholder="例: 50" oninput="recalcEditSale()">
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:10px">各出荷先の数量・単位・内容量を修正してください</p>
+      ${SALE_ROWS.map((dest, i) => {
+        const s = destQtyMap[dest] || { qty: 0, unit: '袋', gram: 100 };
+        return `
+        <div style="background:var(--green-pale);border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid var(--green-light)">
+          <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">${dest}</div>
+          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
+            <div style="flex:2;min-width:80px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">数量</div>
+              <input type="number" id="es_q${i}" value="${s.qty}"
+                min="0" inputmode="numeric"
+                style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"
+                oninput="recalcEditSale()">
+            </div>
+            <div style="flex:1;min-width:60px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">単位</div>
+              <div class="select-wrap">
+                <select id="es_u${i}" style="padding:10px 24px 10px 8px;font-size:13px"
+                  onchange="document.getElementById('es_g${i}').value=_defaultGram(this.value);recalcEditSale()">
+                  ${UNITS.map(u=>`<option${u===s.unit?' selected':''}>${u}</option>`).join('')}
+                </select>
+              </div>
+            </div>
+            <div style="flex:1;min-width:70px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">内容量(g)</div>
+              <input type="number" id="es_g${i}" value="${s.gram||_defaultGram(s.unit)}"
+                min="1" inputmode="numeric"
+                style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;text-align:right"
+                oninput="recalcEditSale()">
             </div>
           </div>
-        </div>`).join('')}
-      <div class="edit-field"><label>備考</label>
-        <textarea id="es_memo" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:none">${log?.memo||''}</textarea>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right" id="es_calc${i}"></div>
+        </div>`;
+      }).join('')}
+      <div style="background:#fff3e0;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:700;color:#e65100" id="es_total">合計: —</div>
+      <div class="form-group" style="margin-top:10px"><label>備考</label>
+        <textarea id="es_memo" rows="2" class="alert-input">${rows[0]?.['メモ']||''}</textarea>
       </div>`;
+    recalcEditSale();
+
+  // ── 防除ログ修正 ─────────────────────────────────────────────
   } else if (logType === 'pest') {
     document.getElementById('editPest').classList.remove('hidden');
+    const rows = log?.rows || [];
+    const first = rows[0] || {};
+    // 圃場別散布量を復元
+    const fieldVolMap = {};
+    rows.forEach(r => {
+      const cd = r['区画CD'] || r['区画名'] || '';
+      if (cd) fieldVolMap[cd] = Number(r['散布量(L)']) || 0;
+    });
+
     const f = document.getElementById('editPestFields');
     f.innerHTML = `
-      <div class="edit-field"><label>散布日</label><input type="date" id="ep_date" value="${log?.date||document.getElementById('editDate').value}" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"></div>
-      <div class="edit-field"><label>薬品名</label>
-        <div class="select-wrap"><select id="ep_cd">
-          ${pesticideMaster.map(p=>`<option value="${p.cd}"${log?.pesticide_cd===p.cd?' selected':''}>${p.name}</option>`).join('')}
+      <div class="form-row col2">
+        <div class="form-group"><label>散布日</label>
+          <input type="date" id="ep_date" value="${log?.date||document.getElementById('editDate').value}"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        </div>
+        <div class="form-group"><label>担当者</label>
+          <div class="select-wrap"><select id="ep_worker">
+            ${WORKERS.map((w,i)=>`<option value="${i}"${first['担当者ID']&&first['担当者ID']===w?' selected':''}>${w}</option>`).join('')}
+          </select></div>
+        </div>
+      </div>
+      <div class="form-row col2">
+        <div class="form-group"><label>天候</label>
+          <div class="select-wrap"><select id="ep_weather">
+            ${['晴','曇','晴のち曇','曇のち晴','小雨'].map(w=>
+              `<option${first['天候']===w?' selected':''}>${w}</option>`).join('')}
+          </select></div>
+        </div>
+        <div class="form-group"><label>気温(℃)</label>
+          <input type="number" id="ep_temp" value="${first['気温(℃)']||20}"
+            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:10px"><label>薬品</label>
+        <div class="select-wrap"><select id="ep_cd" onchange="onEditPestSelect()">
+          ${pesticideMaster.map(p=>
+            `<option value="${p.cd}"${first['薬品CD']===p.cd?' selected':''}>${p.name}（IRAC:${p.irac||'-'}）</option>`
+          ).join('')}
         </select></div>
       </div>
-      <div style="display:flex;gap:8px">
-        <div class="edit-field" style="flex:1"><label>散布面積(a)</label>
-          <input type="number" id="ep_area" value="${log?.area_a||''}" min="0" step="0.1" inputmode="decimal" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+      <div id="ep_info" class="info-box" style="margin-bottom:10px;display:none"><span id="ep_info_text"></span></div>
+      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">🗺 圃場別 散布量(L)</div>
+      ${fieldMaster.map((field, i) => {
+        const vol = fieldVolMap[field.cd] || fieldVolMap[field.name] || 0;
+        return `
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
+          <div style="flex:0 0 90px">
+            <div style="font-size:13px;font-weight:700;color:var(--green)">${field.name}</div>
+            <div style="font-size:10px;color:var(--muted)">${field.area?field.area+'a':'面積未登録'}</div>
+          </div>
+          <input type="number" id="ep_v${i}" value="${vol||''}"
+            min="0" step="1" inputmode="numeric" placeholder="—"
+            style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;text-align:right;font-family:inherit"
+            oninput="recalcEditPestTotal()">
+          <div style="font-size:12px;color:var(--muted);flex:0 0 20px">L</div>
+        </div>`;
+      }).join('')}
+      <div style="background:#e8f5e9;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;font-weight:700;color:#2e7d32" id="ep_total">
+        合計: — L / — a
+      </div>
+      <div class="form-group" style="margin-top:10px"><label>備考</label>
+        <textarea id="ep_memo" rows="2" class="alert-input">${first['備考']||''}</textarea>
+      </div>`;
+    recalcEditPestTotal();
+    onEditPestSelect();
+  }
+}
+
+// ── 作業ログ修正用エントリー ──────────────────────────────────
+let editEntries = [];
+
+function addEditEntry() {
+  const last = editEntries[editEntries.length-1] || {};
+  editEntries.push({ w: last.w||0, f: last.f||0, c: last.c||0, k: last.k||WORK_GROUPS[0].items[0], h: 2.0 });
+  renderEditEntries();
+}
+
+function removeEditEntry(i) {
+  if (editEntries.length <= 1) return;
+  editEntries.splice(i, 1);
+  renderEditEntries();
+}
+
+function renderEditEntries() {
+  const el = document.getElementById('editEntryList');
+  if (!el) return;
+  el.innerHTML = editEntries.map((e, i) => `
+    <div class="entry-card">
+      <span class="entry-num">${i+1}</span>
+      ${i>0 ? `<button class="entry-del" onclick="removeEditEntry(${i})">×</button>` : ''}
+      <div class="form-row col2" style="margin-top:8px">
+        <div class="form-group"><label>作業者</label>
+          <div class="select-wrap"><select id="ee_w${i}">
+            ${WORKERS.map((w,j)=>`<option${j===e.w?' selected':''}>${w}</option>`).join('')}
+          </select></div>
         </div>
-        <div class="edit-field" style="flex:1"><label>散布量(L)</label>
-          <input type="number" id="ep_vol" value="${log?.volume_l||''}" min="0" step="1" inputmode="numeric" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
+        <div class="form-group"><label>区画</label>
+          <div class="select-wrap"><select id="ee_f${i}">
+            ${FIELDS.map((f,j)=>`<option${j===e.f?' selected':''}>${f}</option>`).join('')}
+          </select></div>
         </div>
       </div>
-      <div class="edit-field"><label>備考</label>
-        <textarea id="ep_memo" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:none">${log?.memo||''}</textarea>
-      </div>`;
+      <div class="form-row col3">
+        <div class="form-group"><label>作物</label>
+          <div class="select-wrap"><select id="ee_c${i}">
+            ${CROPS.map((c,j)=>`<option${j===e.c?' selected':''}>${c}</option>`).join('')}
+          </select></div>
+        </div>
+        <div class="form-group"><label>作業</label>
+          ${selWork('ee_k'+i, e.k)}
+        </div>
+        <div class="form-group">
+          <label>時間</label>
+          <div class="stepper">
+            <button onclick="stepEditH(${i},-0.25)">−</button>
+            <span id="eh${i}">${e.h.toFixed(2)}</span>
+            <button onclick="stepEditH(${i},0.25)">＋</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+  editEntries.forEach((_, i) => {
+    document.getElementById(`ee_w${i}`)?.addEventListener('change', e => { editEntries[i].w = e.target.selectedIndex; });
+    document.getElementById(`ee_f${i}`)?.addEventListener('change', e => { editEntries[i].f = e.target.selectedIndex; });
+    document.getElementById(`ee_c${i}`)?.addEventListener('change', e => { editEntries[i].c = e.target.selectedIndex; });
+    document.querySelector(`.ee_k${i}`)?.addEventListener('change', e => { editEntries[i].k = e.target.value; });
+  });
+}
+
+function stepEditH(i, delta) {
+  editEntries[i].h = Math.max(0.25, Math.min(24, editEntries[i].h + delta));
+  document.getElementById(`eh${i}`).textContent = editEntries[i].h.toFixed(2);
+}
+
+// ── 出荷修正: kg/金額リアルタイム計算 ─────────────────────────
+function recalcEditSale() {
+  const unitPrice = parseFloat(document.getElementById('es_price')?.value || 0) || 0;
+  let totalKg = 0, totalAmt = 0;
+  SALE_ROWS.forEach((_, i) => {
+    const qty  = parseInt(document.getElementById(`es_q${i}`)?.value || 0) || 0;
+    const gram = parseInt(document.getElementById(`es_g${i}`)?.value || 100) || 0;
+    const kg   = qty * gram / 1000;
+    const amt  = unitPrice > 0 && gram > 0 ? qty * gram / 100 * unitPrice : 0;
+    totalKg += kg; totalAmt += amt;
+    const calcEl = document.getElementById(`es_calc${i}`);
+    if (calcEl) calcEl.textContent = gram > 0
+      ? `→ ${kg.toFixed(2)}kg${unitPrice > 0 ? ' / ¥'+Math.round(amt).toLocaleString() : ''}`
+      : '';
+  });
+  const tot = document.getElementById('es_total');
+  if (tot) tot.textContent = `合計: ${totalKg.toFixed(2)}kg` +
+    (unitPrice > 0 ? ` / ¥${Math.round(totalAmt).toLocaleString()}` : '');
+}
+
+// ── 防除修正: 圃場合計リアルタイム計算 ───────────────────────
+function recalcEditPestTotal() {
+  let totalVol = 0, totalArea = 0;
+  fieldMaster.forEach((f, i) => {
+    const v = parseFloat(document.getElementById(`ep_v${i}`)?.value || 0) || 0;
+    if (v > 0) { totalVol += v; totalArea += (f.area || 0); }
+  });
+  const bar = document.getElementById('ep_total');
+  if (bar) bar.textContent =
+    `合計: 散布量 ${totalVol > 0 ? totalVol.toFixed(0) : '—'} L　/　面積 ${totalArea > 0 ? totalArea.toFixed(2) : '—'} a`;
+}
+
+function onEditPestSelect() {
+  const cd   = document.getElementById('ep_cd')?.value;
+  const pest = pesticideMaster.find(p => p.cd === cd);
+  const info = document.getElementById('ep_info');
+  const text = document.getElementById('ep_info_text');
+  if (pest && info && text) {
+    text.innerHTML =
+      `<b>${pest.name}</b>（IRAC: ${pest.irac||'—'}）<br>` +
+      `対象: ${pest.target||'—'}　希釈: ${pest.dilution||'—'}　使用時期: ${pest.timing||'—'}<br>` +
+      `使用上限: <b>${pest.limit!==null ? pest.limit+'回' : '—'}</b>`;
+    info.style.display = 'block';
   }
 }
 
@@ -901,25 +1143,48 @@ async function submitEdit() {
   let payload = { type: 'edit', log_type: logType, input_method: 'LIFF', user_id: currentUserId };
 
   if (logType === 'work') {
-    payload.date    = document.getElementById('ew_date').value;
-    payload.weather = document.getElementById('ew_weather').value;
-    payload.note    = document.getElementById('ew_note').value;
+    payload.date         = document.getElementById('ew_date').value;
+    payload.weather      = document.getElementById('ew_weather').value;
+    payload.temperature  = parseFloat(document.getElementById('ew_temp').value) || 15;
+    payload.wind_speed   = parseFloat(document.getElementById('ew_wind').value) || 3;
+    payload.body_feeling = document.getElementById('ew_feel').value;
+    payload.work_entries = editEntries.map((e, i) => ({
+      worker: document.getElementById(`ee_w${i}`)?.value || WORKERS[e.w],
+      field:  document.getElementById(`ee_f${i}`)?.value || FIELDS[e.f],
+      crop:   document.getElementById(`ee_c${i}`)?.value || CROPS[e.c],
+      work:   document.querySelector(`.ee_k${i}`)?.value || e.k,
+      hours:  e.h,
+    }));
+
   } else if (logType === 'sale') {
     payload.date  = document.getElementById('es_date').value;
     payload.memo  = document.getElementById('es_memo').value;
-    payload.sales = SALE_ROWS.map((dest,i) => ({
-      dest, qty: parseInt(document.getElementById(`es_q${i}`).value)||0,
-      unit: UNITS[document.getElementById(`es_u${i}`).selectedIndex],
-    })).filter(r => r.qty > 0);
+    payload.unit_price_per_100g = parseFloat(document.getElementById('es_price').value) || 0;
+    payload.sales = SALE_ROWS.map((dest, i) => {
+      const qty  = parseInt(document.getElementById(`es_q${i}`)?.value || 0) || 0;
+      const unit = document.getElementById(`es_u${i}`)?.value || '袋';
+      const gram = parseInt(document.getElementById(`es_g${i}`)?.value || 100) || 100;
+      const kg   = qty * gram / 1000;
+      return { dest, qty, unit, gram_per_unit: gram, kg };
+    }).filter(r => r.qty > 0);
+
   } else if (logType === 'pest') {
     const cd   = document.getElementById('ep_cd').value;
-    const pest = pesticideMaster.find(p => p.cd === cd)||{};
+    const pest = pesticideMaster.find(p => p.cd === cd) || {};
     payload.date           = document.getElementById('ep_date').value;
     payload.pesticide_cd   = cd;
-    payload.pesticide_name = pest.name||cd;
-    payload.area_a         = parseFloat(document.getElementById('ep_area').value)||'';
-    payload.volume_l       = parseFloat(document.getElementById('ep_vol').value)||'';
+    payload.pesticide_name = pest.name || cd;
+    payload.kubun          = pest.kubun || '';
+    payload.dilution       = pest.dilution || '';
+    payload.weather        = document.getElementById('ep_weather').value;
+    payload.temperature    = parseFloat(document.getElementById('ep_temp').value) || 20;
+    payload.worker_id      = document.getElementById('ep_worker').value;
     payload.memo           = document.getElementById('ep_memo').value;
+    payload.fields         = fieldMaster.map((f, i) => {
+      const v = parseFloat(document.getElementById(`ep_v${i}`)?.value || 0) || 0;
+      return { cd: f.cd, name: f.name, area_a: f.area || 0, volume_l: v };
+    }).filter(f => f.volume_l > 0);
+    if (payload.fields.length === 0) { showToast('⚠️ 散布量を入力してください'); return; }
   }
 
   await sendToGAS(payload, '✏️ 修正を送信しました');
