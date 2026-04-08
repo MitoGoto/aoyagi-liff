@@ -649,7 +649,11 @@ async function updatePestCountBanner() {
     banner.textContent = `ℹ️ ${pest.name} — 使用上限: ${pest.limit}回`;
   }
   try {
-    const res = await fetch(GAS_URL + '?action=getPesticideStatus', { mode: 'cors' });
+    const res = await fetch(GAS_URL, {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ type: 'getPesticideStatus', input_method: 'LIFF' }),
+    });
     if (!res.ok) return;
     const data  = await res.json();
     const found = (data.status||[]).find(s => s.薬品CD === cd);
@@ -674,7 +678,12 @@ async function updatePestCountBanner() {
 // ============================================================
 async function loadMasters() {
   try {
-    const res  = await fetch(GAS_URL + '?action=getMasters', { mode: 'cors' });
+    const res = await fetch(GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ type: 'getMasters', input_method: 'LIFF' }),
+    });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
     _applyMasters(data);
@@ -815,7 +824,11 @@ async function loadEditLog() {
   showToast('🔍 ログを取得中...');
 
   try {
-    const res  = await fetch(`${GAS_URL}?action=getLog&date=${date}&type=${logType}`, { mode: 'cors' });
+    const res  = await fetch(GAS_URL, {
+      method: 'POST', mode: 'cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ type: 'getLog', log_type: logType, date, input_method: 'LIFF' }),
+    });
     const data = res.ok ? await res.json() : null;
 
     if (!data || data.error || !data.log) {
