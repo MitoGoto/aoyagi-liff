@@ -270,7 +270,7 @@
 <!-- ===== 修正タブ ===== -->
 <div id="tabEdit" class="content hidden">
   <div class="section">
-    <div class="section-title">✏️ 修正内容を入力</div>
+    <div class="section-title">🔍 修正するログを選択</div>
     <div class="form-row col2">
       <div class="form-group">
         <label>日付</label>
@@ -287,27 +287,22 @@
         </div>
       </div>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin-top:4px">
-      💡 日付とログ種類を選んでフォームに修正内容を入力し、送信してください
-    </p>
+    <button class="add-btn" onclick="loadEditLog()" style="margin-top:8px">🔍 ログを呼び出す</button>
   </div>
 
-  <div id="editArea">
-    <!-- 作業ログ修正 -->
-    <div id="editWork">
+  <div id="editArea" class="hidden">
+    <div id="editWork" class="hidden">
       <div class="section">
         <div class="section-title">👷 作業ログ修正</div>
         <div id="editWorkFields"></div>
       </div>
     </div>
-    <!-- 出荷ログ修正 -->
     <div id="editSale" class="hidden">
       <div class="section">
         <div class="section-title">🚚 出荷ログ修正</div>
         <div id="editSaleFields"></div>
       </div>
     </div>
-    <!-- 防除ログ修正 -->
     <div id="editPest" class="hidden">
       <div class="section">
         <div class="section-title">🌿 防除ログ修正</div>
@@ -317,6 +312,9 @@
     <button class="submit-btn edit-btn" onclick="submitEdit()">
       <span>✏️</span><span>修正内容を登録する</span>
     </button>
+  </div>
+  <div id="editNotFound" class="hidden" style="padding:16px;text-align:center;color:var(--muted);font-size:14px;">
+    該当するログが見つかりませんでした
   </div>
 </div>
 
@@ -405,8 +403,6 @@ function switchTab(tab) {
     document.querySelectorAll('.tab')[i].classList.toggle('active', t === tab);
     document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
   });
-  // 修正タブに切り替えたら即フォーム表示
-  if (tab === 'edit') onEditTypeChange();
 }
 
 // ============================================================
@@ -804,13 +800,42 @@ function checkDraft() {
 // 修正タブ
 // ============================================================
 function onEditTypeChange() {
-  const logType = document.getElementById('editType').value;
-  renderEditForm(logType, null);
+  // ログ種類変更時はフォームをリセット
+  document.getElementById('editArea').classList.add('hidden');
+  document.getElementById('editNotFound').classList.add('hidden');
 }
 
 async function loadEditLog() {
-  // 後方互換のため残すが使わない
-  onEditTypeChange();
+  const date    = document.getElementById('editDate').value;
+  const logType = document.getElementById('editType').value;
+  if (!date) { showToast('日付を選択してください'); return; }
+
+  document.getElementById('editArea').classList.add('hidden');
+  document.getElementById('editNotFound').classList.add('hidden');
+  showToast('🔍 ログを取得中...');
+
+  try {
+    const data = await fetchGASGet({ action: 'getLog', type: logType, date });
+    console.log('[getLog] レスポンス:', data);
+
+    if (!data || data.error || !data.log) {
+      document.getElementById('editNotFound').classList.remove('hidden');
+      document.getElementById('editNotFound').textContent =
+        `⚠️ ${date} の${logType === 'work' ? '作業' : logType === 'sale' ? '出荷' : '防除'}ログが見つかりませんでした`;
+      return;
+    }
+    editLogData = { type: logType, date, ...data.log };
+    renderEditForm(logType, data.log);
+    document.getElementById('editArea').classList.remove('hidden');
+    showToast('✅ ログを読み込みました');
+  } catch(e) {
+    console.error('[getLog] エラー:', e);
+    // フォールバック: 空フォームを表示
+    editLogData = { type: logType, date };
+    renderEditForm(logType, null);
+    document.getElementById('editArea').classList.remove('hidden');
+    showToast('⚠️ データ取得失敗 — 手入力で修正してください');
+  }
 }
 
 function renderEditForm(logType, log) {
