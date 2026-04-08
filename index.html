@@ -649,13 +649,8 @@ async function updatePestCountBanner() {
     banner.textContent = `ℹ️ ${pest.name} — 使用上限: ${pest.limit}回`;
   }
   try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST', mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ type: 'getPesticideStatus', input_method: 'LIFF' }),
-    });
-    if (!res.ok) return;
-    const data  = await res.json();
+    const data = await fetchGASGet({ action: 'getPesticideStatus' });
+    if (!data) return;
     const found = (data.status||[]).find(s => s.薬品CD === cd);
     if (!found || found.使用上限回数 === null) { banner.style.display = 'none'; return; }
     const { 当年実施回数:done, 使用上限回数:limit, 残り:left, 超過:over, 上限到達:reached } = found;
@@ -678,14 +673,7 @@ async function updatePestCountBanner() {
 // ============================================================
 async function loadMasters() {
   try {
-    const res = await fetch(GAS_URL, {
-      method: 'POST',
-      mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ type: 'getMasters', input_method: 'LIFF' }),
-    });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const data = await res.json();
+    const data = await fetchGASGet({ action: 'getMasters' });
     _applyMasters(data);
   } catch(e) {
     console.warn('getMasters失敗、フォールバック使用:', e);
@@ -824,12 +812,7 @@ async function loadEditLog() {
   showToast('🔍 ログを取得中...');
 
   try {
-    const res  = await fetch(GAS_URL, {
-      method: 'POST', mode: 'cors',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ type: 'getLog', log_type: logType, date, input_method: 'LIFF' }),
-    });
-    const data = res.ok ? await res.json() : null;
+    const data = await fetchGASGet({ action: 'getLog', type: logType, date }).catch(() => null);
 
     if (!data || data.error || !data.log) {
       // GAS取得失敗時のメッセージ
@@ -1316,6 +1299,35 @@ async function submitPest() {
 // ============================================================
 // GAS共通送信
 // ============================================================
+
+// ============================================================
+// JSONP取得（GAS GETのCORSを回避）
+// ============================================================
+function fetchGASGet(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = 'gasCallback_' + Date.now();
+    const qs = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    const url = `${GAS_URL}?${qs}&callback=${cbName}`;
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup();
+      reject(new Error('JSONP timeout'));
+    }, 10000);
+    window[cbName] = (data) => {
+      cleanup();
+      resolve(data);
+    };
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cbName];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    script.onerror = () => { cleanup(); reject(new Error('JSONP error')); };
+    script.src = url;
+    document.head.appendChild(script);
+  });
+}
+
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
 
 async function sendToGAS(payload, successMsg) {
