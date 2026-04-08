@@ -1288,12 +1288,15 @@ function fetchGASGet(params) {
     const cbName = 'gasCallback_' + Date.now();
     const qs = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
     const url = `${GAS_URL}?${qs}&callback=${cbName}`;
+    console.log('[JSONP] リクエスト開始:', url);
     const script = document.createElement('script');
     const timer = setTimeout(() => {
+      console.error('[JSONP] タイムアウト(10秒)。GASへの到達確認が必要:', url);
       cleanup();
       reject(new Error('JSONP timeout'));
     }, 10000);
     window[cbName] = (data) => {
+      console.log('[JSONP] コールバック受信成功:', params.action, data);
       cleanup();
       resolve(data);
     };
@@ -1302,8 +1305,17 @@ function fetchGASGet(params) {
       delete window[cbName];
       if (script.parentNode) script.parentNode.removeChild(script);
     }
-    script.onerror = () => { cleanup(); reject(new Error('JSONP error')); };
+    script.onerror = (e) => {
+      console.error('[JSONP] script.onerror（GAS URLへの到達失敗）:', url);
+      cleanup();
+      reject(new Error('JSONP error'));
+    };
+    script.onload = () => {
+      // onloadが呼ばれてもコールバックが未呼び出しならGASがJSONPを返していない
+      console.log('[JSONP] script.onload:', url, '/ コールバック定義:', typeof window[cbName]);
+    };
     script.src = url;
+    console.log('[JSONP] scriptタグをdocument.headに追加');
     document.head.appendChild(script);
   });
 }
