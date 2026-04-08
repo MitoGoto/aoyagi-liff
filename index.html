@@ -473,13 +473,13 @@ function renderEntries() {
         </div>
       </div>
     </div>`).join('');
-  document.querySelectorAll('.entry-card').forEach((card,i) => {
-    card.querySelector('.e-w').addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
-    card.querySelector('.e-f').addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
-    card.querySelector('.e-c').addEventListener('change', e => { entries[i].c = e.target.selectedIndex; });
-    card.querySelector('.e-k').addEventListener('change', e => {
+  // entryList内のカードのみ対象にする
+  el.querySelectorAll('.entry-card').forEach((card,i) => {
+    card.querySelector('.e-w')?.addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
+    card.querySelector('.e-f')?.addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
+    card.querySelector('.e-c')?.addEventListener('change', e => { entries[i].c = e.target.selectedIndex; });
+    card.querySelector('.e-k')?.addEventListener('change', e => {
       entries[i].k = e.target.value;
-      // 農薬散布を選択したら防除タブへ誘導
       if (e.target.value === '農薬散布') {
         showToast('🌿 防除タブで詳細を入力してください');
         setTimeout(() => switchTab('pest'), 1000);
