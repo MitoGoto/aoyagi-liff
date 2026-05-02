@@ -425,6 +425,70 @@
   }
   .sale-total-bar span { font-size: 18px; color: var(--green); }
 
+  /* 農薬チェックボックス */
+  .pest-check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--green-light);
+  }
+  .pest-check-row:last-child { border-bottom: none; }
+  .pest-check-row input[type="checkbox"] {
+    width: 22px; height: 22px; flex-shrink: 0; margin-top: 2px;
+    accent-color: var(--green);
+  }
+  .pest-check-row input[type="checkbox"]:disabled { opacity: 0.35; }
+  .pest-check-label { flex: 1; }
+  .pest-check-name { font-size: 14px; font-weight: 700; color: var(--text); }
+  .pest-check-sub  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  /* 農薬詳細カード */
+  .pest-info-card {
+    background: var(--green-pale);
+    border: 1.5px solid var(--green-light);
+    border-radius: 10px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    font-size: 13px;
+  }
+  .pest-info-card-name { font-weight: 700; color: var(--green); margin-bottom: 4px; }
+  .pest-info-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pest-info-tag {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  /* 圃場散布量行 */
+  .field-vol-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--green-light);
+  }
+  .field-vol-row:last-child { border-bottom: none; }
+  .field-vol-name {
+    width: 80px; flex-shrink: 0;
+    font-size: 13px; font-weight: 700; color: var(--green);
+  }
+  .field-vol-input {
+    width: 80px;
+    padding: 8px 6px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    text-align: center;
+    font-family: inherit;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .field-vol-input:focus { border-color: var(--green-mid); background: var(--green-pale); }
+  .field-vol-unit { font-size: 12px; color: var(--muted); }
+
   /* 異常連絡ボタン */
   .alert-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
   .alert-btn {
@@ -537,6 +601,7 @@
 <div class="tabs">
   <div class="tab active" onclick="switchTab('work')">👷 作業ログ</div>
   <div class="tab" onclick="switchTab('sale')">🚚 出荷データ</div>
+  <div class="tab" onclick="switchTab('pest')">🌿 防除</div>
 </div>
 
 <!-- 一時保存バー -->
@@ -652,6 +717,60 @@
   </div>
 </div>
 
+<!-- ===== 防除タブ ===== -->
+<div id="tabPest" class="content hidden">
+  <div class="section">
+    <div class="section-title">📅 散布日</div>
+    <div class="form-group">
+      <input type="date" id="pestDate">
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">💊 農薬選択（最大2種）</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">チェックを入れた農薬を散布記録に登録します</div>
+    <div id="pesticideCheckList"></div>
+  </div>
+
+  <div id="pesticideSelectedInfo" class="hidden">
+    <div class="section">
+      <div class="section-title">📋 選択中の農薬</div>
+      <div id="pesticideInfoCards"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🌾 圃場別散布量(L)</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:8px">散布した圃場の散布量を入力してください</div>
+    <div id="fieldVolumeList"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">🌤 散布条件</div>
+    <div class="form-group">
+      <label>天候</label>
+      <select id="pestWeather">
+        <option>晴</option><option>曇</option><option>雨</option><option>晴時々曇</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>気温(℃)</label>
+      <input type="number" inputmode="numeric" id="pestTemp" placeholder="例: 20" style="width:100px">
+    </div>
+    <div class="form-group">
+      <label>担当者</label>
+      <select id="pestWorker"></select>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📝 備考</div>
+    <div class="form-group">
+      <textarea class="alert-input" id="pestMemo" rows="2" placeholder="希釈倍率・散布方法など"></textarea>
+    </div>
+  </div>
+</div>
+
 <!-- 送信ボタン -->
 <div class="submit-area">
   <div style="display:flex;gap:8px;margin-bottom:8px">
@@ -689,6 +808,26 @@ const WORK_GROUPS = [
 ];
 
 const FIELDS = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
+
+// 農薬マスタ（フォールバック12品目）
+const PEST_FALLBACK = [
+  {cd:'P001',name:'Zボルドー',          kubun:'殺菌',    irac:'M01', dilution:'400〜600倍', limit:6},
+  {cd:'P002',name:'ダントツ水溶剤',      kubun:'殺虫',    irac:'4A',  dilution:'2000〜4000倍', limit:3},
+  {cd:'P003',name:'アファーム乳剤',      kubun:'殺虫',    irac:'6',   dilution:'1000〜2000倍', limit:3},
+  {cd:'P004',name:'カスケード乳剤',      kubun:'殺虫',    irac:'15',  dilution:'1000〜2000倍', limit:3},
+  {cd:'P005',name:'オーソサイド水和剤',  kubun:'殺菌',    irac:'M04', dilution:'600〜800倍', limit:6},
+  {cd:'P006',name:'スコア顆粒水和剤',    kubun:'殺菌',    irac:'3',   dilution:'2000倍', limit:3},
+  {cd:'P007',name:'トップジンM水和剤',   kubun:'殺菌',    irac:'1',   dilution:'1000〜1500倍', limit:4},
+  {cd:'P008',name:'ハチハチ乳剤',        kubun:'殺虫',    irac:'12',  dilution:'1000〜2000倍', limit:3},
+  {cd:'P009',name:'プリロッソ顆粒水和剤',kubun:'殺虫',    irac:'28',  dilution:'2000倍', limit:3},
+  {cd:'P010',name:'モスピラン水溶剤',    kubun:'殺虫',    irac:'4A',  dilution:'2000〜4000倍', limit:4},
+  {cd:'P011',name:'ランネート45DF',      kubun:'殺虫',    irac:'1A',  dilution:'1000〜2000倍', limit:3},
+  {cd:'P012',name:'ゼンターリ顆粒水和剤',kubun:'殺虫',    irac:'11A', dilution:'500〜1000倍', limit:6},
+];
+let PESTICIDES = PEST_FALLBACK.slice();
+
+// 防除タブ状態
+let selectedPestCds = new Set(); // 選択中の農薬CD（最大2）
 const UNITS  = ['袋','ケース','個','kg'];
 
 // フォールバック定義
@@ -751,6 +890,7 @@ async function init() {
       else CROPS = CROPS_DEFAULT;
       if (data.dests   && data.dests.length > 0)   DESTS   = data.dests;
       else DESTS = DESTS_DEFAULT;
+      if (data.pesticides && data.pesticides.length > 0) PESTICIDES = data.pesticides;
     } else {
       throw new Error(data.message || 'API error');
     }
@@ -767,6 +907,9 @@ async function init() {
   addEntry();
   sales = DESTS.map(() => ({ qty: 0, u: 0, price: 0 }));
   renderSales();
+  renderPesticideList();
+  renderFieldVolumes();
+  renderPestWorker();
   checkDraft();
 }
 
@@ -776,11 +919,12 @@ async function init() {
 function switchTab(tab) {
   currentTab = tab;
   document.querySelectorAll('.tab').forEach((t,i) =>
-    t.classList.toggle('active', (i===0&&tab==='work')||(i===1&&tab==='sale')));
+    t.classList.toggle('active', (i===0&&tab==='work')||(i===1&&tab==='sale')||(i===2&&tab==='pest')));
   document.getElementById('tabWork').classList.toggle('hidden', tab!=='work');
   document.getElementById('tabSale').classList.toggle('hidden', tab!=='sale');
+  document.getElementById('tabPest').classList.toggle('hidden', tab!=='pest');
   document.getElementById('submitLabel').textContent =
-    tab === 'work' ? '日報を登録する' : '出荷データを登録する';
+    tab === 'work' ? '日報を登録する' : tab === 'sale' ? '出荷データを登録する' : '防除記録を登録する';
 }
 
 // ============================================================
@@ -883,6 +1027,83 @@ function updateTotal() {
 }
 
 // ============================================================
+// ============================================================
+// 防除タブ
+// ============================================================
+function renderPesticideList() {
+  const el = document.getElementById('pesticideCheckList');
+  if (!el) return;
+  el.innerHTML = PESTICIDES.map(p => {
+    const checked  = selectedPestCds.has(p.cd);
+    const disabled = !checked && selectedPestCds.size >= 2;
+    return `<div class="pest-check-row">
+      <input type="checkbox" id="pc-${p.cd}"
+        ${checked ? 'checked' : ''}
+        ${disabled ? 'disabled' : ''}
+        onchange="togglePesticide('${p.cd}')">
+      <div class="pest-check-label">
+        <div class="pest-check-name">${p.name}
+          <span style="font-size:11px;font-weight:400;color:var(--muted)">（${p.kubun}）</span>
+        </div>
+        <div class="pest-check-sub">IRAC: ${p.irac || '—'} ／ 希釈: ${p.dilution || '—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function togglePesticide(cd) {
+  if (selectedPestCds.has(cd)) {
+    selectedPestCds.delete(cd);
+  } else {
+    if (selectedPestCds.size >= 2) return;
+    selectedPestCds.add(cd);
+  }
+  renderPesticideList();
+  renderPesticideInfo();
+}
+
+function renderPesticideInfo() {
+  const infoEl = document.getElementById('pesticideSelectedInfo');
+  const cards  = document.getElementById('pesticideInfoCards');
+  if (!infoEl || !cards) return;
+  if (selectedPestCds.size === 0) {
+    infoEl.classList.add('hidden');
+    return;
+  }
+  infoEl.classList.remove('hidden');
+  cards.innerHTML = [...selectedPestCds].map(cd => {
+    const p = PESTICIDES.find(x => x.cd === cd) || {};
+    return `<div class="pest-info-card">
+      <div class="pest-info-card-name">✅ ${p.name || cd}</div>
+      <div class="pest-info-row">
+        <span class="pest-info-tag">区分: ${p.kubun || '—'}</span>
+        <span class="pest-info-tag">IRAC: ${p.irac || '—'}</span>
+        <span class="pest-info-tag">希釈: ${p.dilution || '—'}</span>
+        ${p.limit ? `<span class="pest-info-tag">年間上限: ${p.limit}回</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderFieldVolumes() {
+  const el = document.getElementById('fieldVolumeList');
+  if (!el) return;
+  el.innerHTML = FIELDS.filter(f => f !== '（なし）').map((f, i) => `
+    <div class="field-vol-row">
+      <div class="field-vol-name">${f}</div>
+      <input class="field-vol-input" type="number" inputmode="numeric"
+        pattern="[0-9]*" min="0" placeholder="0" id="fv${i}">
+      <div class="field-vol-unit">L</div>
+    </div>`).join('');
+}
+
+function renderPestWorker() {
+  const sel = document.getElementById('pestWorker');
+  if (!sel) return;
+  sel.innerHTML = WORKERS.map(w =>
+    `<option value="${w.id || w}">${w.name || w}</option>`).join('');
+}
+
 // 出荷エントリー（直接数字入力方式）
 // ============================================================
 function renderSales() {
@@ -1108,6 +1329,39 @@ async function submit() {
         type: 'sales', date: dateVal, sales: saleRows, memo,
         input_method: 'LIFF',
       };
+    } else {
+      // ── 防除 ──────────────────────────────────────────────
+      if (selectedPestCds.size === 0) {
+        showToast('❌ 農薬を1種以上選択してください'); return;
+      }
+      const pestDateVal = document.getElementById('pestDate').value;
+      if (!pestDateVal) { showToast('❌ 散布日を入力してください'); return; }
+
+      const pesticides = [...selectedPestCds].map(cd => {
+        const p = PESTICIDES.find(x => x.cd === cd) || {};
+        return { cd: p.cd || cd, name: p.name || cd, kubun: p.kubun || '', dilution: p.dilution || '' };
+      });
+
+      const targetFields = FIELDS.filter(f => f !== '（なし）');
+      const fields = targetFields.map((f, i) => {
+        const vol = parseFloat(document.getElementById(`fv${i}`)?.value) || 0;
+        return { cd: f, name: f, volume_l: vol, area_a: 0 };
+      }).filter(f => f.volume_l > 0);
+
+      const workerSel = document.getElementById('pestWorker');
+      const workerOpt = workerSel?.options[workerSel.selectedIndex];
+      payload = {
+        type: 'pesticide',
+        date: pestDateVal,
+        pesticides,
+        fields,
+        weather:     document.getElementById('pestWeather').value,
+        temperature: parseFloat(document.getElementById('pestTemp').value) || '',
+        worker_id:   workerOpt?.value || '',
+        memo:        document.getElementById('pestMemo').value.trim(),
+        user_id:     userId,
+        input_method: 'LIFF',
+      };
     }
 
     await fetch(GAS_URL, {
@@ -1118,7 +1372,9 @@ async function submit() {
 
     const msg = currentTab === 'work'
       ? `✅ 日報を送信しました（${entries.length}件）\nLINEグループに通知されます`
-      : `🚚 出荷データを送信しました\nLINEグループに通知されます`;
+      : currentTab === 'sale'
+      ? `🚚 出荷データを送信しました\nLINEグループに通知されます`
+      : `🌿 防除記録を送信しました\nLINEグループに通知されます`;
     showToast(msg);
 
     localStorage.removeItem(DRAFT_KEY_WORK);
@@ -1131,19 +1387,22 @@ async function submit() {
       document.getElementById('alertText').value = '';
       entries = [];
       addEntry();
-    } else {
+    } else if (currentTab === 'sale') {
       sales = DESTS.map((_, i) => ({ qty: 0, u: sales[i] ? sales[i].u : 0, price: sales[i] ? sales[i].price : 0 }));
       renderSales();
       document.getElementById('saleMemo').value = '';
+    } else {
+      // 防除: チェックと圃場量をリセット（農薬選択はそのまま残す）
+      renderFieldVolumes();
+      document.getElementById('pestMemo').value = '';
     }
-
   } catch(err) {
     showToast('❌ 送信エラー: ' + err.message);
     console.error(err);
   } finally {
     btn.style.background = 'var(--green)';
     btn.innerHTML = '<span>💾</span><span id="submitLabel">' +
-      (currentTab === 'work' ? '日報を登録する' : '出荷データを登録する') + '</span>';
+      (currentTab === 'work' ? '日報を登録する' : currentTab === 'sale' ? '出荷データを登録する' : '防除記録を登録する') + '</span>';
     btn.disabled = false;
   }
 }
