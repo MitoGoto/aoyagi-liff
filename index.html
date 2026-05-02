@@ -842,7 +842,9 @@ const CROPS_DEFAULT = [
   {cd:'KL',name:'ケール'},{cd:'MO',name:'もものすけ'},{cd:'SP',name:'さつまいも'},{cd:'TR',name:'トレビス'},{cd:'OT',name:'その他'}
 ];
 const DESTS_DEFAULT = [
-  {cd:'LR',name:'ランドローム'},{cd:'BS',name:'ベイシア佐倉店'},{cd:'SA',name:'さくらノーム'},{cd:'SG',name:'シェアガーデン'},{cd:'OT',name:'その他'}
+  {cd:'LR',name:'ランドローム'},{cd:'BS',name:'ベイシア佐倉店'},{cd:'SA',name:'さくらノーム'},
+  {cd:'SG',name:'シェアガーデン'},{cd:'YK',name:'ヨークマート',default_price:100,contents_g:50},
+  {cd:'OT',name:'その他'}
 ];
 
 let currentTab = 'work';
@@ -905,7 +907,7 @@ async function init() {
   document.getElementById('loadingOverlay').classList.add('hidden');
 
   addEntry();
-  sales = DESTS.map(() => ({ qty: 0, u: 0, price: 0 }));
+  sales = DESTS.map(d => ({ qty: 0, u: 0, price: d.default_price || 0 }));
   renderSales();
   renderPesticideList();
   renderFieldVolumes();
@@ -1321,8 +1323,9 @@ async function submit() {
         dest: dest.name,
         qty:  sales[i] ? sales[i].qty : 0,
         unit: UNITS[sales[i] ? sales[i].u : 0],
-        unit_price: sales[i] ? (sales[i].price || 0) : 0,
-        amount: sales[i] ? (sales[i].qty || 0) * (sales[i].price || 0) : 0,
+        unit_price:  sales[i] ? (sales[i].price || 0) : 0,
+        amount:      sales[i] ? (sales[i].qty || 0) * (sales[i].price || 0) : 0,
+        contents_g:  dest.contents_g || null,
       })).filter(r => r.qty > 0);
 
       payload = {
