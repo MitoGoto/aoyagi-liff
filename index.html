@@ -7,93 +7,536 @@
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/versions/2.22.3/sdk.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap');
+
   :root {
-    --green:#2d6a2d; --green-mid:#4a9e4a; --green-light:#e8f5e9; --green-pale:#f1f8f1;
-    --accent:#ff6b35; --amber:#f59e0b; --red:#ef4444;
-    --text:#1a1a1a; --muted:#6b7280; --border:#d1d5db; --radius:12px;
-    --shadow:0 2px 12px rgba(0,0,0,0.08);
+    --green:      #2d6a2d;
+    --green-mid:  #4a9e4a;
+    --green-light:#e8f5e9;
+    --green-pale: #f1f8f1;
+    --accent:     #ff6b35;
+    --line-green: #00b900;
+    --text:       #1a1a1a;
+    --muted:      #6b7280;
+    --border:     #d1d5db;
+    --radius:     12px;
+    --shadow:     0 2px 12px rgba(0,0,0,0.08);
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Noto Sans JP',sans-serif;background:#f5f7f5;color:var(--text);min-height:100vh;padding-bottom:20px;}
-  .header{background:var(--green);color:white;padding:14px 16px 12px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.2);}
-  .header-icon{font-size:22px;} .header-title{font-size:16px;font-weight:700;}
-  .header-user{font-size:12px;opacity:.85;background:rgba(255,255,255,.15);padding:3px 8px;border-radius:20px;margin-left:4px;}
-  .header-date{margin-left:auto;font-size:12px;opacity:.85;background:rgba(255,255,255,.15);padding:3px 8px;border-radius:20px;}
-  .tabs{display:flex;background:white;border-bottom:2px solid var(--border);position:sticky;top:52px;z-index:99;overflow-x:auto;}
-  .tab{flex:1;min-width:60px;padding:10px 4px;text-align:center;font-size:11px;font-weight:500;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;transition:all .2s;white-space:nowrap;}
-  .tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:700;}
-  .content{padding:12px;}
-  .section{background:white;border-radius:var(--radius);padding:16px;margin-bottom:12px;box-shadow:var(--shadow);}
-  .section-title{font-size:13px;font-weight:700;color:var(--green);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
-  .section-title::after{content:'';flex:1;height:1px;background:var(--green-light);}
-  .form-row{display:flex;gap:10px;margin-bottom:10px;}
-  .form-row.col2>*{flex:1;} .form-row.col3>*{flex:1;}
-  .form-group{display:flex;flex-direction:column;gap:4px;}
-  .form-group label{font-size:11px;font-weight:700;color:var(--muted);}
-  .form-group input[type="date"],.form-group textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;}
-  .form-group input[type="number"]{width:100%;padding:12px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;font-family:inherit;text-align:right;}
-  .form-group input[type="text"]{width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;}
-  .select-wrap{position:relative;}
-  .select-wrap::after{content:'▾';position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:12px;}
-  .select-wrap select{width:100%;padding:10px 28px 10px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;appearance:none;background:white;}
-  .stepper{display:flex;align-items:center;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;}
-  .stepper button{width:40px;height:42px;border:none;background:var(--green-light);font-size:18px;cursor:pointer;color:var(--green);font-weight:700;flex-shrink:0;}
-  .stepper span{flex:1;text-align:center;font-size:18px;font-weight:700;}
-  .feel-btns{display:flex;gap:6px;}
-  .feel-btn{flex:1;padding:8px 4px;border:1.5px solid var(--border);border-radius:8px;font-size:11px;text-align:center;cursor:pointer;background:white;font-family:inherit;line-height:1.3;}
-  .feel-btn.active{background:var(--green-light);border-color:var(--green);font-weight:700;}
-  .entry-card{background:var(--green-pale);border-radius:10px;padding:12px;margin-bottom:10px;position:relative;border:1.5px solid var(--green-light);}
-  .entry-num{position:absolute;top:8px;left:10px;font-size:11px;font-weight:700;color:var(--green);}
-  .entry-del{position:absolute;top:8px;right:10px;background:none;border:none;color:#999;font-size:18px;cursor:pointer;padding:0;line-height:1;}
-  .add-btn{width:100%;padding:10px;border:2px dashed var(--green-mid);border-radius:8px;background:var(--green-pale);color:var(--green);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;}
-  .total-bar{background:var(--green-light);border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;color:var(--green);margin-top:8px;}
-  .alert-btns{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:0;}
-  .alert-btn{padding:7px 11px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;background:white;cursor:pointer;font-family:inherit;transition:all .15s;color:var(--text);}
-  .alert-btn.active{background:#fef2f2;border-color:var(--red);color:var(--red);font-weight:700;}
-  .alert-input{width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:none;}
-  .submit-btn{width:100%;padding:16px;background:var(--green);color:white;border:none;border-radius:var(--radius);font-size:16px;font-weight:700;cursor:pointer;font-family:inherit;transition:background .15s;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;}
-  .submit-btn:active{background:#1e4d1e;}
-  .submit-btn.sale-btn{background:#e07b3a;}
-  .submit-btn.sale-btn:active{background:#b85e24;}
-  .submit-btn.pest-btn{background:#388e3c;}
-  .submit-btn.edit-btn{background:#5c6bc0;}
-  .submit-btn.edit-btn:active{background:#3949ab;}
-  .toast{position:fixed;top:70px;left:50%;transform:translateX(-50%) translateY(-20px);background:var(--green);color:white;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:700;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:999;}
-  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
-  .draft-bar{background:#fffbeb;border-bottom:2px solid var(--amber);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:700;color:#92400e;}
-  .draft-actions{display:flex;gap:8px;}
-  .draft-btn{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:700;border:none;cursor:pointer;font-family:inherit;}
-  .draft-btn.restore{background:var(--amber);color:white;}
-  .draft-btn.discard{background:#e5e7eb;color:#374151;}
-  .info-box{background:var(--green-pale);border-radius:8px;padding:10px;margin-top:8px;font-size:12px;line-height:1.8;}
-  .count-banner{padding:10px 12px;border-radius:8px;font-size:13px;font-weight:700;margin-top:10px;}
-  .sale-row{display:flex;align-items:center;gap:6px;padding:8px 0;border-bottom:1px solid var(--green-light);}
-  .sale-dest{width:80px;font-size:12px;font-weight:700;color:var(--green);flex-shrink:0;}
-  .sale-calc{font-size:11px;color:var(--muted);margin-top:4px;text-align:right;}
-  .sale-total-bar{background:#fff3e0;border-radius:8px;padding:8px 12px;font-size:12px;font-weight:700;color:#e65100;margin-top:8px;}
-  /* 修正タブ */
-  .edit-card{background:#f3f4f6;border-radius:10px;padding:14px;margin-bottom:10px;border:1.5px solid #d1d5db;}
-  .edit-field{margin-bottom:8px;}
-  .edit-field label{font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:3px;}
-  .hidden{display:none!important;}
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans JP', sans-serif;
+    background: #f5f7f5;
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 100px;
+  }
+
+  .header {
+    background: var(--green);
+    color: white;
+    padding: 14px 16px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  .header-icon { font-size: 22px; }
+  .header-title { font-size: 16px; font-weight: 700; }
+  .header-date { margin-left: auto; font-size: 12px; opacity: 0.85; background: rgba(255,255,255,0.15); padding: 3px 8px; border-radius: 20px; }
+
+  .tabs {
+    display: flex;
+    background: white;
+    border-bottom: 2px solid var(--border);
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+  }
+  .tab {
+    flex: 1;
+    padding: 12px 8px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    border-bottom: 3px solid transparent;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+    font-weight: 700;
+  }
+
+  .content { padding: 12px; }
+  .section {
+    background: white;
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--shadow);
+  }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--green-light);
+  }
+
+  .form-row {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .form-row.col2 { grid-template-columns: 1fr 1fr; }
+  .form-row.col3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .form-group label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .form-group select,
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+    transition: border-color .2s;
+  }
+  .form-group select:focus,
+  .form-group input:focus { border-color: var(--green-mid); }
+  .select-wrap { position: relative; }
+  .select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 12px;
+  }
+  .form-group input[type="number"] { text-align: right; }
+
+  /* 天気 */
+  .w-btn {
+    padding: 8px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 13px;
+    background: white;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .w-btn.active {
+    background: var(--green-light);
+    border-color: var(--green-mid);
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* 作業エントリー */
+  .entry-card {
+    background: var(--green-pale);
+    border: 1.5px solid var(--green-light);
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .entry-num {
+    position: absolute;
+    top: -8px;
+    left: 12px;
+    background: var(--green);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .entry-del {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 2px;
+  }
+
+  /* 時間ステッパー */
+  .stepper {
+    display: flex;
+    align-items: center;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: white;
+  }
+  .stepper button {
+    width: 36px;
+    height: 42px;
+    border: none;
+    background: var(--green-light);
+    color: var(--green);
+    font-size: 18px;
+    cursor: pointer;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .stepper span {
+    flex: 1;
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* 体感ボタン */
+  .feel-btns { display: flex; gap: 6px; }
+  .feel-btn {
+    flex: 1;
+    padding: 8px 4px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 12px;
+    text-align: center;
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .feel-btn.active {
+    background: var(--green-light);
+    border-color: var(--green-mid);
+    color: var(--green);
+    font-weight: 700;
+  }
+
+  /* 異常連絡 */
+  .alert-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    resize: none;
+  }
+  .alert-input:focus { border-color: #ef4444; }
+
+  /* 追加ボタン */
+  .add-btn {
+    width: 100%;
+    padding: 11px;
+    border: 1.5px dashed var(--green-mid);
+    border-radius: 8px;
+    background: var(--green-pale);
+    color: var(--green);
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .add-btn:active { background: var(--green-light); }
+
+  /* 合計バー */
+  .total-bar {
+    background: var(--green-light);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 700;
+    margin-top: 4px;
+  }
+
+  /* 送信ボタン */
+  .submit-area {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 16px;
+    background: white;
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 12px rgba(0,0,0,0.08);
+  }
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .submit-btn:active { background: #1e4d1e; }
+
+  /* 出荷行 */
+  .sale-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--green-light);
+  }
+  .sale-row:last-child { border-bottom: none; }
+  .sale-row-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sale-row-bottom {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 0;
+  }
+  .sale-dest {
+    width: 90px;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--green);
+    flex-shrink: 0;
+  }
+  /* 出荷数: 直接入力（数字キーボード） */
+  .sale-qty {
+    flex: 1;
+    padding: 10px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    outline: none;
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .sale-qty:focus {
+    border-color: var(--green-mid);
+    background: var(--green-pale);
+  }
+  .sale-qty::placeholder { color: #ccc; font-size: 14px; font-weight: 400; }
+  .sale-unit {
+    width: 64px;
+    flex-shrink: 0;
+    padding: 10px 6px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    appearance: none;
+    -webkit-appearance: none;
+    outline: none;
+  }
+  .sale-unit:focus { border-color: var(--green-mid); }
+  /* 単価・小計 */
+  .sale-price-label {
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+    width: 90px;
+    text-align: right;
+  }
+  .sale-price {
+    width: 90px;
+    flex-shrink: 0;
+    padding: 7px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 600;
+    text-align: center;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+  .sale-price:focus { border-color: var(--green-mid); background: var(--green-pale); }
+  .sale-price::placeholder { color: #ccc; font-size: 12px; font-weight: 400; }
+  .sale-amount {
+    flex: 1;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--green);
+    text-align: right;
+  }
+  .sale-total-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 0 4px;
+    border-top: 2px solid var(--green-light);
+    margin-top: 4px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .sale-total-bar span { font-size: 18px; color: var(--green); }
+
+  /* 異常連絡ボタン */
+  .alert-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 0; }
+  .alert-btn {
+    padding: 7px 11px;
+    border: 1.5px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px;
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+    color: var(--text);
+  }
+  .alert-btn.active {
+    background: #fef2f2;
+    border-color: #ef4444;
+    color: #ef4444;
+    font-weight: 700;
+  }
+
+  /* トースト */
+  .toast {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: var(--green);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0;
+    transition: all .3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 999;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 一時保存バー */
+  .draft-bar {
+    background: #fffbeb;
+    border-bottom: 2px solid #f59e0b;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    font-weight: 700;
+    color: #92400e;
+  }
+  .draft-actions { display: flex; gap: 8px; }
+  .draft-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .draft-btn.restore { background: #f59e0b; color: white; }
+  .draft-btn.discard { background: #e5e7eb; color: #374151; }
+
+  /* ローディング */
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    font-size: 14px;
+    color: var(--green);
+    font-weight: 700;
+    gap: 12px;
+  }
+  .spinner {
+    width: 36px; height: 36px;
+    border: 3px solid var(--green-light);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 
+<!-- ローディング -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <span>マスタ読み込み中...</span>
+</div>
+
 <!-- ヘッダー -->
 <div class="header">
   <span class="header-icon">🌿</span>
-  <span class="header-title">あおやぎファーム</span>
-  <span class="header-user" id="userName"></span>
+  <span class="header-title">あおやぎファーム 日報入力</span>
+  <span class="header-user" id="userName" style="font-size:12px;opacity:0.85;background:rgba(255,255,255,0.15);padding:3px 8px;border-radius:20px;margin-left:4px"></span>
   <span class="header-date" id="headerDate"></span>
 </div>
 
-<!-- タブ (5タブ) -->
+<!-- タブ -->
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('work')">👷 作業</div>
-  <div class="tab" onclick="switchTab('sale')">🚚 出荷</div>
-  <div class="tab" onclick="switchTab('pest')">🌿 防除</div>
-  <div class="tab" onclick="switchTab('edit')">✏️ 修正</div>
+  <div class="tab active" onclick="switchTab('work')">👷 作業ログ</div>
+  <div class="tab" onclick="switchTab('sale')">🚚 出荷データ</div>
 </div>
 
 <!-- 一時保存バー -->
@@ -110,10 +553,15 @@
 
 <!-- ===== 作業ログタブ ===== -->
 <div id="tabWork" class="content">
+
+  <!-- 基本情報 -->
   <div class="section">
     <div class="section-title">📅 基本情報</div>
     <div class="form-row">
-      <div class="form-group"><label>日付</label><input type="date" id="workDate"></div>
+      <div class="form-group">
+        <label>日付</label>
+        <input type="date" id="workDate">
+      </div>
     </div>
     <div class="form-row col3">
       <div class="form-group">
@@ -136,13 +584,16 @@
         <label>天気</label>
         <div class="select-wrap">
           <select id="weather">
-            <option>晴れ</option><option>晴れ時々曇り</option><option>晴れ時々雨</option>
-            <option>曇り</option><option>曇り時々晴れ</option><option>曇り時々雨</option>
-            <option>雨</option><option>雨のち晴れ</option><option>強風</option>
+            <option>晴れ</option>
+            <option>晴れ時々曇り</option>
+            <option>曇り</option>
+            <option>雨</option>
+            <option>強風</option>
           </select>
         </div>
       </div>
     </div>
+
     <div class="form-group" style="margin-bottom:10px">
       <label>体感</label>
       <div class="feel-btns">
@@ -153,9 +604,10 @@
         <button class="feel-btn" onclick="setFeel(this,'非常に暑い')">🔥<br>非常に暑い</button>
       </div>
     </div>
+
     <div class="form-group">
       <label>異常連絡</label>
-      <div class="alert-btns">
+      <div class="alert-btns" id="alertBtns">
         <button class="alert-btn" onclick="toggleAlert(this,'怪我')">🤕 怪我</button>
         <button class="alert-btn" onclick="toggleAlert(this,'体調不良')">🤒 体調不良</button>
         <button class="alert-btn" onclick="toggleAlert(this,'設備不具合')">🔧 設備不具合</button>
@@ -166,232 +618,156 @@
       <textarea class="alert-input" id="alertText" rows="2" placeholder="詳細メモ（任意）" style="margin-top:8px"></textarea>
     </div>
   </div>
+
+  <!-- 作業エントリー -->
   <div class="section">
     <div class="section-title">🔨 作業内容</div>
     <div id="entryList"></div>
     <button class="add-btn" onclick="addEntry()">＋ 作業行を追加</button>
     <div class="total-bar" id="totalBar">⏱ 合計: —</div>
   </div>
-  <button class="submit-btn" onclick="submitWork()">
-    <span>💾</span><span>作業ログを登録する</span>
-  </button>
+
 </div>
 
 <!-- ===== 出荷タブ ===== -->
 <div id="tabSale" class="content hidden">
   <div class="section">
-    <div class="section-title">📅 出荷日・単価</div>
-    <div class="form-row col2">
-      <div class="form-group"><label>出荷日</label><input type="date" id="saleDate"></div>
-      <div class="form-group">
-        <label>100gあたり単価(円)</label>
-        <input type="number" id="saleUnitPrice" min="0" step="1" inputmode="numeric" placeholder="例: 50" oninput="recalcSale()">
-      </div>
+    <div class="section-title">📅 出荷日</div>
+    <div class="form-group">
+      <input type="date" id="saleDate">
     </div>
   </div>
+
   <div class="section">
     <div class="section-title">📦 出荷内容</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">各出荷先の数量・単位・内容量を入力してください</p>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">数量欄をタップして数字キーボードで直接入力できます</div>
     <div id="saleList"></div>
-    <div class="sale-total-bar" id="saleTotalBar">合計: —</div>
   </div>
+
   <div class="section">
     <div class="section-title">📝 備考</div>
     <div class="form-group">
       <textarea class="alert-input" id="saleMemo" rows="2" placeholder="例: 予備2袋含む"></textarea>
     </div>
   </div>
-  <button class="submit-btn sale-btn" onclick="submitSale()">
-    <span>🚚</span><span>出荷データを登録する</span>
-  </button>
 </div>
 
-<!-- ===== 防除タブ ===== -->
-<div id="tabPest" class="content hidden">
-  <div class="section">
-    <div class="section-title">📅 散布情報</div>
-    <div class="form-row col2">
-      <div class="form-group"><label>散布日</label><input type="date" id="pestDate"></div>
-      <div class="form-group">
-        <label>担当者</label>
-        <div class="select-wrap"><select id="pestWorker"></select></div>
-      </div>
-    </div>
-    <div class="form-row col2">
-      <div class="form-group">
-        <label>天候</label>
-        <div class="select-wrap">
-          <select id="pestWeather">
-            <option>晴</option><option>曇</option><option>晴のち曇</option><option>曇のち晴</option><option>小雨</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-group">
-        <label>気温(℃)</label>
-        <div class="stepper">
-          <button onclick="stepPest('temp',-1)">−</button>
-          <span id="pestTempVal">20</span>
-          <button onclick="stepPest('temp',1)">＋</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">💊 農薬選択</div>
-    <div id="pestMasterLoading" style="color:var(--muted);font-size:13px;padding:8px 0">読み込み中...</div>
-    <div id="pestSelectWrap" class="hidden">
-      <div class="form-group">
-        <label>薬品</label>
-        <div class="select-wrap"><select id="pestCd" onchange="onPestSelect()"></select></div>
-      </div>
-      <div id="pestInfo" class="info-box" style="display:none"><span id="pestInfoText"></span></div>
-    </div>
-    <div id="pestCountBanner" class="count-banner" style="display:none"></div>
-  </div>
-  <div class="section">
-    <div class="section-title">🗺 圃場別 散布量入力</div>
-    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">散布した圃場の量(L)を入力してください。面積は自動表示。</p>
-    <div id="pestFieldList"></div>
-    <div style="background:#e8f5e9;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;font-weight:700;color:#2e7d32" id="pestTotalBar">
-      合計: 散布量 — L　/　面積 — a
-    </div>
-  </div>
-  <div class="section">
-    <div class="section-title">📝 備考</div>
-    <div class="form-group">
-      <textarea class="alert-input" id="pestMemo" rows="2" placeholder="薬害・病害虫の状況など"></textarea>
-    </div>
-  </div>
-  <button class="submit-btn pest-btn" onclick="submitPest()">
-    <span>🌿</span><span>防除実績を登録する</span>
-  </button>
-</div>
-
-<!-- ===== 修正タブ ===== -->
-<div id="tabEdit" class="content hidden">
-  <div class="section">
-    <div class="section-title">🔍 修正するログを選択</div>
-    <div class="form-row col2">
-      <div class="form-group">
-        <label>日付</label>
-        <input type="date" id="editDate">
-      </div>
-      <div class="form-group">
-        <label>ログ種類</label>
-        <div class="select-wrap">
-          <select id="editType" onchange="onEditTypeChange()">
-            <option value="work">👷 作業ログ</option>
-            <option value="sale">🚚 出荷ログ</option>
-            <option value="pest">🌿 防除ログ</option>
-          </select>
-        </div>
-      </div>
-    </div>
-    <button class="add-btn" onclick="loadEditLog()" style="margin-top:8px">🔍 ログを呼び出す</button>
-  </div>
-
-  <div id="editArea" class="hidden">
-    <div id="editWork" class="hidden">
-      <div class="section">
-        <div class="section-title">👷 作業ログ修正</div>
-        <div id="editWorkFields"></div>
-      </div>
-    </div>
-    <div id="editSale" class="hidden">
-      <div class="section">
-        <div class="section-title">🚚 出荷ログ修正</div>
-        <div id="editSaleFields"></div>
-      </div>
-    </div>
-    <div id="editPest" class="hidden">
-      <div class="section">
-        <div class="section-title">🌿 防除ログ修正</div>
-        <div id="editPestFields"></div>
-      </div>
-    </div>
-    <button class="submit-btn edit-btn" onclick="submitEdit()">
-      <span>✏️</span><span>修正内容を登録する</span>
+<!-- 送信ボタン -->
+<div class="submit-area">
+  <div style="display:flex;gap:8px;margin-bottom:8px">
+    <button onclick="saveDraft()" style="flex:1;padding:10px;border:1.5px solid var(--green-mid);border-radius:10px;background:var(--green-pale);color:var(--green);font-size:13px;font-weight:700;font-family:inherit;cursor:pointer;">
+      📝 一時保存
     </button>
-  </div>
-  <div id="editNotFound" class="hidden" style="padding:16px;text-align:center;color:var(--muted);font-size:14px;">
-    該当するログが見つかりませんでした
+    <button class="submit-btn" onclick="submit()" style="flex:2">
+      <span>💾</span>
+      <span id="submitLabel">日報を登録する</span>
+    </button>
   </div>
 </div>
 
 <script>
 // ============================================================
-// データ定義
+// マスタデータ（GASから動的取得、フォールバックあり）
 // ============================================================
-let WORKERS = ['青柳匡彦','青柳絵瑠','藤井基貴','麻友子','良枝','賢一','孝雄','達也','恒川','渡辺ゆき乃','桜庭裕紀子','花島夢美','松本美帆','小澤'];
-const FIELDS = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
-let CROPS = ['ケール','もものすけ','さつまいも','トレビス','その他'];
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
 
+// 起動時にGASから取得して上書きされる
+let WORKERS = [];  // [{id, name, type}]
+let CROPS   = [];  // [{cd, name}]
+let DESTS   = [];  // [{cd, name}]
+
+// 作業グループ（固定）
 const WORK_GROUPS = [
   { label: '🌾 収穫・出荷準備', items: ['収穫（開始期）','収穫（本格）','収穫（拾い獲り）','選別調整','計量','袋詰め','ラベル貼付','箱詰め','出荷準備'] },
   { label: '🌱 育苗', items: ['育苗管理','育苗追肥','鉢上げ','播種'] },
   { label: '🚜 定植・圃場整備', items: ['定植','定植後灌水','不織布がけ','マルチ','防草シート','耕耘','圃場整備'] },
-  { label: '🌿 施肥・防除', items: ['肥料（堆肥）','肥料（苦土石灰）','肥料（化成肥料）','肥料（液肥）','追肥（1回目）','追肥（2回目）','追肥（3回目）','追肥（4回目）','農薬散布','作業準備'] },
+  { label: '🌿 施肥・防除', items: ['肥料（堆肥）','肥料（苦土石灰）','肥料（化成肥料）','肥料（液肥）','追肥（1回目）','追肥（2回目）','追肥（3回目）','追肥（4回目）','農薬散布（1回目）','農薬散布（2回目）'] },
   { label: '✂️ 管理作業', items: ['除草','病害虫確認','灌水'] },
   { label: '📦 片付け', items: ['片付け（残渣抜き）','片付け（マルチはがし）','片付け（資材撤去）','片付け（清掃）'] },
   { label: '🚗 移動・事務', items: ['移動','出荷運搬','来客対応','ミーティング','計画・分析','写真撮影','日報'] },
   { label: '📝 その他', items: ['その他農作業','その他出荷','その他'] },
 ];
-const WORKS = WORK_GROUPS.flatMap(g => g.items);
-const UNITS = ['袋','ケース','個','kg'];
-let SALE_ROWS = ['ランドローム','ベイシア佐倉店','さくらノーム','シェアガーデン','農総研','その他'];
 
-const PESTICIDE_FALLBACK = [
-  { cd:'P001', name:'Zボルドー',                kubun:'殺菌', irac:'',    target:'炭疽細菌病他',                        dilution:'500倍',        timing:'',        limit:1,   ingredient:'' },
-  { cd:'P002', name:'ダントツ水溶剤',           kubun:'殺虫', irac:'4A',  target:'アブラムシ類',                        dilution:'2000〜4000倍', timing:'収穫7日前',limit:3,   ingredient:'クロチアニジン' },
-  { cd:'P003', name:'グレーシア乳剤',           kubun:'殺虫', irac:'30',  target:'コナガ、アオムシ、アザミウマ',         dilution:'3000倍',       timing:'収穫7日前',limit:2,   ingredient:'フルキサメタミド' },
-  { cd:'P004', name:'ディアナSC',               kubun:'殺虫', irac:'5',   target:'コナガ、アザミウマ類、ハスモンヨトウ', dilution:'2500〜5000倍', timing:'収穫前日', limit:2,   ingredient:'スピネトラム' },
-  { cd:'P005', name:'トランスフォームフロアブル',kubun:'殺虫', irac:'4C',  target:'アブラムシ類',                        dilution:'2000倍',       timing:'収穫前日', limit:3,   ingredient:'スルホキサフロル' },
-  { cd:'P006', name:'プロフレアSC',             kubun:'殺虫', irac:'30',  target:'コナガ、アオムシ、キスジノミハムシ',   dilution:'2000〜4000倍', timing:'収穫前日', limit:3,   ingredient:'プロフラニリド' },
-  { cd:'P007', name:'アニキ乳剤',               kubun:'殺虫', irac:'6',   target:'コナガ、ハスモンヨトウ、ハモグリバエ', dilution:'1000〜2000倍', timing:'収穫前日', limit:3,   ingredient:'レビメクチン' },
-  { cd:'P008', name:'ウララDF',                 kubun:'殺虫', irac:'29',  target:'アブラムシ類',                        dilution:'4000倍',       timing:'収穫前日', limit:2,   ingredient:'フロニカミド' },
-  { cd:'P009', name:'フィールドマスト',         kubun:'殺虫', irac:'4E',  target:'コナガ、ハスモンヨトウ、ハモグリバエ', dilution:'4000倍',       timing:'収穫前日', limit:2,   ingredient:'スルホキサフロル' },
-  { cd:'P010', name:'ライメイフロアブル',       kubun:'殺菌', irac:'',    target:'白さび病',                            dilution:'',             timing:'収穫3日前',limit:3,   ingredient:'' },
-  { cd:'P011', name:'プレバソンフロアブル5',    kubun:'殺虫', irac:'28',  target:'コナガ、ハモグリバエ類',               dilution:'2000倍',       timing:'収穫前日', limit:2,   ingredient:'クロラントラニリプロール' },
-  { cd:'P012', name:'ゼンターリ顆粒水和剤',    kubun:'殺虫', irac:'11A', target:'コナガ、オオタバコガ、ヨトウ',         dilution:'1000〜2000倍', timing:'収穫前日', limit:null,ingredient:'' },
+const FIELDS = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
+const UNITS  = ['袋','ケース','個','kg'];
+
+// フォールバック定義
+const WORKERS_DEFAULT = [
+  {id:'M001',name:'青柳匡彦',type:'M'},{id:'M002',name:'青柳絵瑠',type:'M'},{id:'M003',name:'藤井基貴',type:'M'},
+  {id:'W002',name:'麻友子',type:'W'},{id:'W003',name:'良枝',type:'W'},{id:'W004',name:'賢一',type:'W'},
+  {id:'W005',name:'孝雄',type:'W'},{id:'W006',name:'達也',type:'W'},{id:'W007',name:'恒川',type:'W'},
+  {id:'W008',name:'渡辺ゆき乃',type:'W'},{id:'W009',name:'桜庭 裕紀子',type:'W'},
+  {id:'W010',name:'花島 夢美',type:'W'},{id:'W011',name:'松本 美帆',type:'W'},{id:'W012',name:'小澤',type:'W'},
+];
+const CROPS_DEFAULT = [
+  {cd:'KL',name:'ケール'},{cd:'MO',name:'もものすけ'},{cd:'SP',name:'さつまいも'},{cd:'TR',name:'トレビス'},{cd:'OT',name:'その他'}
+];
+const DESTS_DEFAULT = [
+  {cd:'LR',name:'ランドローム'},{cd:'BS',name:'ベイシア佐倉店'},{cd:'SA',name:'さくらノーム'},{cd:'SG',name:'シェアガーデン'},{cd:'OT',name:'その他'}
 ];
 
-let pesticideMaster = [];
 let currentTab = 'work';
-let feeling = '普通';
-let tempVal = 15, windVal = 3, pestTempVal = 20;
-let entries = [];
-let sales = [];
-let currentUserId = 'LIFF';
-let editLogData = null; // 修正対象ログ
+let feeling    = '普通';
+let tempVal    = 15;
+let windVal    = 3;
+let entries    = [];
+let sales      = [];  // [{qty: number, u: number}]
 
 // ============================================================
 // 初期化
 // ============================================================
 async function init() {
+  // LIFF初期化
+  let userId = 'LIFF';
   try {
-    await liff.init({ liffId: '2009498715-Ti30qYpZ' });
+    await liff.init({ liffId: '2009446922-hoUkWLnQ' });
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     document.getElementById('userName').textContent = profile.displayName;
-    currentUserId = profile.userId;
+    userId = profile.userId;
   } catch(e) {
     console.warn('LIFF init failed:', e);
     document.getElementById('userName').textContent = 'ゲスト';
   }
 
   const today = new Date();
-  const fmt = d => d.toISOString().slice(0,10);
-  ['workDate','saleDate','pestDate','editDate'].forEach(id => {
-    document.getElementById(id).value = fmt(today);
-  });
+  const fmt   = d => d.toISOString().slice(0,10);
+  document.getElementById('workDate').value = fmt(today);
+  document.getElementById('saleDate').value = fmt(today);
   document.getElementById('headerDate').textContent =
     `${today.getMonth()+1}/${today.getDate()}(${['日','月','火','水','木','金','土'][today.getDay()]})`;
 
+  // GASからマスタ取得（タイムアウト5秒）
+  try {
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 5000);
+    const res  = await fetch(GAS_URL + '?action=getMasters', { signal: ctrl.signal });
+    clearTimeout(tid);
+    const data = await res.json();
+    if (data.status === 'ok') {
+      if (data.workers && data.workers.length > 0) WORKERS = data.workers;
+      else WORKERS = WORKERS_DEFAULT;
+      if (data.crops   && data.crops.length > 0)   CROPS   = data.crops;
+      else CROPS = CROPS_DEFAULT;
+      if (data.dests   && data.dests.length > 0)   DESTS   = data.dests;
+      else DESTS = DESTS_DEFAULT;
+    } else {
+      throw new Error(data.message || 'API error');
+    }
+  } catch(e) {
+    console.warn('マスタ取得失敗、フォールバック使用:', e.message);
+    WORKERS = WORKERS_DEFAULT;
+    CROPS   = CROPS_DEFAULT;
+    DESTS   = DESTS_DEFAULT;
+  }
+
+  // ローディング非表示
+  document.getElementById('loadingOverlay').classList.add('hidden');
+
   addEntry();
-  sales = SALE_ROWS.map(() => ({ qty: 0, u: 0 }));
+  sales = DESTS.map(() => ({ qty: 0, u: 0, price: 0 }));
   renderSales();
   checkDraft();
-  loadMasters();
 }
 
 // ============================================================
@@ -399,23 +775,30 @@ async function init() {
 // ============================================================
 function switchTab(tab) {
   currentTab = tab;
-  ['work','sale','pest','edit'].forEach((t,i) => {
-    document.querySelectorAll('.tab')[i].classList.toggle('active', t === tab);
-    document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== tab);
-  });
+  document.querySelectorAll('.tab').forEach((t,i) =>
+    t.classList.toggle('active', (i===0&&tab==='work')||(i===1&&tab==='sale')));
+  document.getElementById('tabWork').classList.toggle('hidden', tab!=='work');
+  document.getElementById('tabSale').classList.toggle('hidden', tab!=='sale');
+  document.getElementById('submitLabel').textContent =
+    tab === 'work' ? '日報を登録する' : '出荷データを登録する';
 }
 
 // ============================================================
-// ステッパー
+// ステッパー（気温・風速）
 // ============================================================
 function step(id, delta) {
-  if (id === 'temp') { tempVal = Math.max(-20, Math.min(45, tempVal + delta)); document.getElementById('tempVal').textContent = tempVal; }
-  else { windVal = Math.max(0, Math.min(30, windVal + delta)); document.getElementById('windVal').textContent = windVal; }
+  if (id === 'temp') {
+    tempVal = Math.max(-20, Math.min(45, tempVal + delta));
+    document.getElementById('tempVal').textContent = tempVal;
+  } else {
+    windVal = Math.max(0, Math.min(30, windVal + delta));
+    document.getElementById('windVal').textContent = windVal;
+  }
 }
-function stepPest(id, delta) {
-  pestTempVal = Math.max(-20, Math.min(45, pestTempVal + delta));
-  document.getElementById('pestTempVal').textContent = pestTempVal;
-}
+
+// ============================================================
+// 体感
+// ============================================================
 function setFeel(btn, val) {
   feeling = val;
   document.querySelectorAll('.feel-btn').forEach(b => b.classList.remove('active'));
@@ -425,8 +808,8 @@ function setFeel(btn, val) {
 // ============================================================
 // 作業エントリー
 // ============================================================
-function sel(opts, cls, def) {
-  return `<div class="select-wrap"><select class="${cls}">${opts.map((o,i)=>`<option${i===def?' selected':''}>${o}</option>`).join('')}</select></div>`;
+function sel(opts, cls, defIdx, valKey) {
+  return `<div class="select-wrap"><select class="${cls}">${opts.map((o,i)=>`<option value="${o[valKey]||o}"${i===defIdx?' selected':''}>${o.name||o}</option>`).join('')}</select></div>`;
 }
 function selWork(cls, defVal) {
   const opts = WORK_GROUPS.map(g =>
@@ -436,16 +819,19 @@ function selWork(cls, defVal) {
   ).join('');
   return `<div class="select-wrap"><select class="${cls}">${opts}</select></div>`;
 }
+
 function addEntry() {
   const last = entries[entries.length-1] || {};
   entries.push({ w: last.w||0, f: last.f||0, c: last.c||0, k: last.k||WORK_GROUPS[0].items[0], h: 2.0 });
   renderEntries();
 }
+
 function removeEntry(i) {
   if (entries.length <= 1) return;
   entries.splice(i,1);
   renderEntries();
 }
+
 function renderEntries() {
   const el = document.getElementById('entryList');
   el.innerHTML = entries.map((e,i) => `
@@ -453,12 +839,12 @@ function renderEntries() {
       <span class="entry-num">${i+1}</span>
       ${i>0 ? `<button class="entry-del" onclick="removeEntry(${i})">×</button>` : ''}
       <div class="form-row col2" style="margin-top:8px">
-        <div class="form-group"><label>作業者</label>${sel(WORKERS,'e-w',e.w)}</div>
-        <div class="form-group"><label>区画</label>${sel(FIELDS,'e-f',e.f)}</div>
+        <div class="form-group"><label>作業者</label>${sel(WORKERS,'e-w',e.w,'name')}</div>
+        <div class="form-group"><label>区画</label>${sel(FIELDS,'e-f',e.f,'')}</div>
       </div>
       <div class="form-row col3">
-        <div class="form-group"><label>作物</label>${sel(CROPS,'e-c',e.c)}</div>
-        <div class="form-group"><label>作業</label>${selWork('e-k', e.k)}</div>
+        <div class="form-group"><label>作物</label>${sel(CROPS,'e-c',e.c,'name')}</div>
+        <div class="form-group"><label>作業</label>${selWork('e-k', e.k || WORK_GROUPS[0].items[0])}</div>
         <div class="form-group">
           <label>時間</label>
           <div class="stepper">
@@ -469,30 +855,27 @@ function renderEntries() {
         </div>
       </div>
     </div>`).join('');
-  // entryList内のカードのみ対象にする
-  el.querySelectorAll('.entry-card').forEach((card,i) => {
-    card.querySelector('.e-w')?.addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
-    card.querySelector('.e-f')?.addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
-    card.querySelector('.e-c')?.addEventListener('change', e => { entries[i].c = e.target.selectedIndex; });
-    card.querySelector('.e-k')?.addEventListener('change', e => {
-      entries[i].k = e.target.value;
-      if (e.target.value === '農薬散布') {
-        showToast('🌿 防除タブで詳細を入力してください');
-        setTimeout(() => switchTab('pest'), 1000);
-      }
-    });
+
+  document.querySelectorAll('.entry-card').forEach((card,i) => {
+    card.querySelector('.e-w').addEventListener('change', e => { entries[i].w = e.target.selectedIndex; });
+    card.querySelector('.e-f').addEventListener('change', e => { entries[i].f = e.target.selectedIndex; });
+    card.querySelector('.e-c').addEventListener('change', e => { entries[i].c = e.target.selectedIndex; });
+    card.querySelector('.e-k').addEventListener('change', e => { entries[i].k = e.target.value; });
   });
+
   updateTotal();
 }
+
 function stepH(i, delta) {
   entries[i].h = Math.max(0.25, Math.min(24, entries[i].h + delta));
   document.getElementById(`h${i}`).textContent = entries[i].h.toFixed(2);
   updateTotal();
 }
+
 function updateTotal() {
   const totals = {};
   entries.forEach(e => {
-    const name = WORKERS[e.w];
+    const name = WORKERS[e.w] ? WORKERS[e.w].name : '—';
     totals[name] = (totals[name]||0) + e.h;
   });
   const txt = Object.entries(totals).map(([n,h])=>`${n}: ${h}h`).join('　');
@@ -500,236 +883,99 @@ function updateTotal() {
 }
 
 // ============================================================
+// 出荷エントリー（直接数字入力方式）
+// ============================================================
+function renderSales() {
+  const el = document.getElementById('saleList');
+  el.innerHTML = DESTS.map((dest, i) => `
+    <div class="sale-row">
+      <div class="sale-row-top">
+        <div class="sale-dest">${dest.name}</div>
+        <input
+          class="sale-qty"
+          type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          min="0"
+          max="9999"
+          placeholder="0"
+          value="${sales[i] && sales[i].qty > 0 ? sales[i].qty : ''}"
+          id="q${i}"
+          onchange="sales[${i}].qty = parseInt(this.value)||0; calcSaleAmount(${i})"
+          oninput="sales[${i}].qty = parseInt(this.value)||0; calcSaleAmount(${i})"
+        >
+        <select class="sale-unit" id="u${i}" onchange="sales[${i}].u = this.selectedIndex">
+          ${UNITS.map((u,j)=>`<option${sales[i]&&j===sales[i].u?' selected':''}>${u}</option>`).join('')}
+        </select>
+      </div>
+      <div class="sale-row-bottom">
+        <div class="sale-price-label">単価(円/袋)</div>
+        <input
+          class="sale-price"
+          type="number"
+          inputmode="numeric"
+          pattern="[0-9]*"
+          min="0"
+          placeholder="0"
+          value="${sales[i] && sales[i].price > 0 ? sales[i].price : ''}"
+          id="p${i}"
+          onchange="sales[${i}].price = parseInt(this.value)||0; calcSaleAmount(${i})"
+          oninput="sales[${i}].price = parseInt(this.value)||0; calcSaleAmount(${i})"
+        >
+        <div class="sale-amount" id="a${i}">${sales[i] && sales[i].qty > 0 && sales[i].price > 0 ? '¥' + (sales[i].qty * sales[i].price).toLocaleString() : '—'}</div>
+      </div>
+    </div>`).join('') +
+    `<div class="sale-total-bar">合計金額 <span id="saleTotalAmount">${calcSaleTotals()}</span></div>`;
+}
+
+function calcSaleAmount(i) {
+  const qty   = parseInt(document.getElementById(`q${i}`)?.value) || 0;
+  const price = parseInt(document.getElementById(`p${i}`)?.value) || 0;
+  const el    = document.getElementById(`a${i}`);
+  if (el) el.textContent = (qty > 0 && price > 0) ? '¥' + (qty * price).toLocaleString() : '—';
+  const tot = document.getElementById('saleTotalAmount');
+  if (tot) tot.textContent = calcSaleTotals();
+}
+
+function calcSaleTotals() {
+  let total = 0;
+  DESTS.forEach((_,i) => {
+    const qty   = parseInt(document.getElementById(`q${i}`)?.value) || 0;
+    const price = parseInt(document.getElementById(`p${i}`)?.value) || 0;
+    total += qty * price;
+  });
+  return total > 0 ? '¥' + total.toLocaleString() : '—';
+}
+
+// ============================================================
 // 異常連絡
 // ============================================================
 const alertSelected = new Set();
 function toggleAlert(btn, val) {
-  if (alertSelected.has(val)) { alertSelected.delete(val); btn.classList.remove('active'); }
-  else { alertSelected.add(val); btn.classList.add('active'); }
-}
-
-// ============================================================
-// 出荷
-// ============================================================
-// sales配列: [{ qty:0, unit:'袋', gram:100 }, ...]
-function recalcSale() {
-  const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
-  let totalKg = 0, totalAmt = 0;
-  SALE_ROWS.forEach((_, i) => {
-    const qtyEl  = document.getElementById(`q${i}`);
-    const gramEl = document.getElementById(`gram${i}`);
-    const qty    = parseInt(qtyEl ? qtyEl.value : 0) || 0;
-    const gram   = parseInt(gramEl ? gramEl.value : 100) || 0;
-    const kg     = qty * gram / 1000;
-    totalKg  += kg;
-    totalAmt += (unitPrice > 0 && gram > 0) ? qty * gram / 100 * unitPrice : 0;
-    const calcEl = document.getElementById(`calc${i}`);
-    if (calcEl) {
-      calcEl.textContent = gram > 0
-        ? `→ ${kg.toFixed(2)}kg${unitPrice > 0 ? ' / ¥' + Math.round(qty * gram / 100 * unitPrice).toLocaleString() : ''}`
-        : '';
-    }
-    if (!sales[i]) sales[i] = { qty: 0, unit: '袋', gram: 100 };
-    sales[i].qty  = qty;
-    sales[i].gram = gram;
-  });
-  const bar = document.getElementById('saleTotalBar');
-  bar.textContent = `合計: ${totalKg.toFixed(2)}kg` +
-    (unitPrice > 0 ? ` / ¥${Math.round(totalAmt).toLocaleString()}` : '');
-}
-
-function _defaultGram(unit) {
-  if (unit === '袋')    return 100;
-  if (unit === 'ケース') return 5000;
-  if (unit === 'kg')   return 1000;
-  return 100;
-}
-
-function renderSales() {
-  const el = document.getElementById('saleList');
-  el.innerHTML = SALE_ROWS.map((dest, i) => {
-    const s    = sales[i] || { qty: 0, unit: '袋', gram: 100 };
-    const gram = s.gram || _defaultGram(s.unit || '袋');
-    return `
-    <div style="background:var(--green-pale);border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid var(--green-light)">
-      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">${dest}</div>
-      <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-        <div style="flex:2;min-width:80px">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">数量</div>
-          <input type="number" id="q${i}" value="${s.qty}"
-            min="0" inputmode="numeric" pattern="[0-9]*"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"
-            oninput="recalcSale()">
-        </div>
-        <div style="flex:1;min-width:60px">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">単位</div>
-          <div class="select-wrap">
-            <select id="u${i}" style="padding:10px 24px 10px 8px;font-size:13px"
-              onchange="document.getElementById('gram${i}').value=_defaultGram(this.value);recalcSale()">
-              ${UNITS.map(u=>`<option${u===s.unit?' selected':''}>${u}</option>`).join('')}
-            </select>
-          </div>
-        </div>
-        <div style="flex:1;min-width:70px">
-          <div style="font-size:10px;color:var(--muted);margin-bottom:2px">内容量(g)</div>
-          <input type="number" id="gram${i}" value="${gram}"
-            min="1" inputmode="numeric"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;text-align:right"
-            oninput="recalcSale()">
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right" id="calc${i}"></div>
-    </div>`;
-  }).join('');
-  recalcSale();
-}
-
-// ============================================================
-// 防除 — 圃場別散布量
-// ============================================================
-let fieldMaster = [];
-
-function renderPestFields() {
-  const el = document.getElementById('pestFieldList');
-  if (!fieldMaster.length) {
-    el.innerHTML = '<p style="color:var(--muted);font-size:13px">圃場情報を読み込み中...</p>';
-    return;
-  }
-  el.innerHTML = fieldMaster.map((f, i) => `
-    <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
-      <div style="flex:0 0 90px">
-        <div style="font-size:13px;font-weight:700;color:var(--green)">${f.name}</div>
-        <div style="font-size:10px;color:var(--muted)">${f.area ? f.area+'a' : '面積未登録'}</div>
-      </div>
-      <input type="number" id="pv${i}" value=""
-        min="0" step="1" inputmode="numeric" placeholder="—"
-        style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;text-align:right;font-family:inherit"
-        oninput="recalcPestTotal()">
-      <div style="font-size:12px;color:var(--muted);flex:0 0 20px">L</div>
-    </div>`).join('');
-  recalcPestTotal();
-}
-
-function recalcPestTotal() {
-  let totalVol = 0, totalArea = 0;
-  fieldMaster.forEach((f, i) => {
-    const v = parseFloat(document.getElementById(`pv${i}`)?.value || 0) || 0;
-    if (v > 0) { totalVol += v; totalArea += (f.area || 0); }
-  });
-  const bar = document.getElementById('pestTotalBar');
-  if (bar) bar.textContent =
-    `合計: 散布量 ${totalVol > 0 ? totalVol.toFixed(0) : '—'} L　/　面積 ${totalArea > 0 ? totalArea.toFixed(2) : '—'} a`;
-}
-
-function onPestSelect() {
-  const cd   = document.getElementById('pestCd').value;
-  const pest = pesticideMaster.find(p => p.cd === cd);
-  if (!pest) return;
-  document.getElementById('pestInfoText').innerHTML =
-    `<b>${pest.name}</b>（IRAC: ${pest.irac||'—'}）<br>` +
-    `対象: ${pest.target||'—'}<br>` +
-    `希釈: ${pest.dilution||'—'}　使用時期: ${pest.timing||'—'}<br>` +
-    `使用上限: <b>${pest.limit!==null ? pest.limit+'回' : '—'}</b>　成分: ${pest.ingredient||'—'}`;
-  document.getElementById('pestInfo').style.display = 'block';
-  updatePestCountBanner();
-}
-
-async function updatePestCountBanner() {
-  const banner = document.getElementById('pestCountBanner');
-  const cdEl   = document.getElementById('pestCd');
-  const cd     = cdEl ? cdEl.value : '';
-  if (!cd) { banner.style.display = 'none'; return; }
-  const pest = pesticideMaster.find(p => p.cd === cd);
-  if (pest && pest.limit) {
-    banner.style.display = 'block';
-    banner.style.background = '#e8f5e9'; banner.style.color = '#2e7d32';
-    banner.textContent = `ℹ️ ${pest.name} — 使用上限: ${pest.limit}回`;
-  }
-  try {
-    const data = await fetchGASGet({ action: 'getPesticideStatus' });
-    if (!data) return;
-    const found = (data.status||[]).find(s => s.薬品CD === cd);
-    if (!found || found.使用上限回数 === null) { banner.style.display = 'none'; return; }
-    const { 当年実施回数:done, 使用上限回数:limit, 残り:left, 超過:over, 上限到達:reached } = found;
-    banner.style.display = 'block';
-    if (over) {
-      banner.style.background = '#ffebee'; banner.style.color = '#c62828';
-      banner.textContent = `🔴 使用上限超過！ ${done}回 / 上限${limit}回 — 使用を中止してください`;
-    } else if (reached) {
-      banner.style.background = '#fff3e0'; banner.style.color = '#e65100';
-      banner.textContent = `🟡 上限到達 ${done}回 / ${limit}回 — これ以上の使用は規定違反です`;
-    } else {
-      banner.style.background = '#e8f5e9'; banner.style.color = '#2e7d32';
-      banner.textContent = `✅ 使用回数: ${done}回 / 上限${limit}回（残り${left}回）`;
-    }
-  } catch(e) {}
-}
-
-// ============================================================
-// マスタ読み込み
-// ============================================================
-async function loadMasters() {
-  try {
-    const data = await fetchGASGet({ action: 'getMasters' });
-    _applyMasters(data);
-  } catch(e) {
-    console.warn('getMasters失敗、フォールバック使用:', e);
-    _applyMasters({});
-  }
-}
-
-function _applyMasters(data) {
-  if (data.workers && data.workers.length > 0) {
-    WORKERS.length = 0; data.workers.forEach(w => WORKERS.push(w.name)); renderEntries();
-  }
-  if (data.crops && data.crops.length > 0) {
-    CROPS.length = 0; data.crops.forEach(c => CROPS.push(c.name)); renderEntries();
-  }
-  if (data.dests && data.dests.length > 0) {
-    SALE_ROWS.length = 0;
-    data.dests.forEach(d => SALE_ROWS.push(d.name));
-    while (sales.length < SALE_ROWS.length) sales.push({ qty: 0, unit: '袋', gram: 100 });
-    sales.length = SALE_ROWS.length;
-    renderSales();
-  }
-  // 防除: 担当者
-  const pWorkerEl = document.getElementById('pestWorker');
-  const workerList = data.workers && data.workers.length > 0
-    ? data.workers : WORKERS.map((name, i) => ({ id: String(i), name }));
-  pWorkerEl.innerHTML = workerList.map(w => `<option value="${w.id}">${w.name}</option>`).join('');
-  // 防除: 圃場マスタ
-  if (data.fields && data.fields.length > 0) {
-    fieldMaster = data.fields.map(f => ({
-      cd:   f.cd   || f['区画CD'] || '',
-      name: f.name || f['区画名'] || f.cd || '',
-      area: parseFloat(f.area || f['面積(a)']) || 0,
-    }));
+  if (alertSelected.has(val)) {
+    alertSelected.delete(val);
+    btn.classList.remove('active');
   } else {
-    fieldMaster = FIELDS.filter(f => f !== '（なし）').map(f => ({ cd: f, name: f, area: 0 }));
+    alertSelected.add(val);
+    btn.classList.add('active');
   }
-  renderPestFields();
-  // 農薬マスタ
-  pesticideMaster = (data.pesticides && data.pesticides.length > 0) ? data.pesticides : PESTICIDE_FALLBACK;
-  const sel = document.getElementById('pestCd');
-  const grouped = {};
-  pesticideMaster.forEach(p => { const g = p.kubun||'その他'; if (!grouped[g]) grouped[g]=[]; grouped[g].push(p); });
-  sel.innerHTML = Object.entries(grouped).map(([g, ps]) =>
-    `<optgroup label="${g}">${ps.map(p =>
-      `<option value="${p.cd}">${p.name}（IRAC:${p.irac||'-'}）</option>`
-    ).join('')}</optgroup>`
-  ).join('');
-  document.getElementById('pestMasterLoading').classList.add('hidden');
-  document.getElementById('pestSelectWrap').classList.remove('hidden');
-  onPestSelect();
 }
 
 // ============================================================
-// 一時保存
+// 一時保存（localStorage）
 // ============================================================
 const DRAFT_KEY_WORK = 'aoyagi_draft_work';
 const DRAFT_KEY_SALE = 'aoyagi_draft_sale';
+
 function saveDraft() {
   try {
+    // 出荷数を最新のinput値から読み直す
+    DESTS.forEach((_,i) => {
+      const el = document.getElementById(`q${i}`);
+      if (el) sales[i].qty = parseInt(el.value)||0;
+      const ep = document.getElementById(`p${i}`);
+      if (ep) sales[i].price = parseInt(ep.value)||0;
+    });
     const workDraft = {
       date: document.getElementById('workDate').value,
       weather: document.getElementById('weather').value,
@@ -737,7 +983,7 @@ function saveDraft() {
       alerts: Array.from(alertSelected),
       alertText: document.getElementById('alertText').value,
       entries,
-      savedAt: new Date().toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'}),
+      savedAt: new Date().toLocaleTimeString('ja-JP', {hour:'2-digit', minute:'2-digit'}),
     };
     const saleDraft = {
       date: document.getElementById('saleDate').value,
@@ -749,617 +995,156 @@ function saveDraft() {
     showToast(`💾 ${workDraft.savedAt} に一時保存しました`);
   } catch(e) { showToast('❌ 保存に失敗しました'); }
 }
+
 function loadDraft() {
   try {
     if (currentTab === 'work') {
-      const d = JSON.parse(localStorage.getItem(DRAFT_KEY_WORK)||'null');
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY_WORK) || 'null');
       if (!d) return;
-      document.getElementById('workDate').value = d.date||'';
-      document.getElementById('weather').value  = d.weather||'晴れ';
-      tempVal = d.temp??15; document.getElementById('tempVal').textContent = tempVal;
-      windVal = d.wind??3;  document.getElementById('windVal').textContent = windVal;
-      feeling = d.feeling||'普通';
-      document.querySelectorAll('.feel-btn').forEach(b => b.classList.toggle('active', b.textContent.includes(feeling)));
-      alertSelected.clear();
-      (d.alerts||[]).forEach(v => alertSelected.add(v));
-      document.querySelectorAll('.alert-btn').forEach(b => {
-        b.classList.toggle('active', alertSelected.has(b.textContent.trim().replace(/^.*?\s/,'')));
+      document.getElementById('workDate').value = d.date || '';
+      document.getElementById('weather').value  = d.weather || '晴れ';
+      tempVal = d.temp ?? 15; document.getElementById('tempVal').textContent = tempVal;
+      windVal = d.wind ?? 3;  document.getElementById('windVal').textContent = windVal;
+      feeling = d.feeling || '普通';
+      document.querySelectorAll('.feel-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent.includes(feeling));
       });
-      document.getElementById('alertText').value = d.alertText||'';
-      entries = d.entries||[];
-      if (entries.length===0) addEntry(); else renderEntries();
+      alertSelected.clear();
+      (d.alerts || []).forEach(v => alertSelected.add(v));
+      document.querySelectorAll('.alert-btn').forEach(b => {
+        const label = b.textContent.trim().replace(/^.*?\s/,'');
+        b.classList.toggle('active', alertSelected.has(label));
+      });
+      document.getElementById('alertText').value = d.alertText || '';
+      entries = d.entries || [];
+      if (entries.length === 0) addEntry(); else renderEntries();
+      showToast('✅ 下書きを復元しました');
     } else {
-      const d = JSON.parse(localStorage.getItem(DRAFT_KEY_SALE)||'null');
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY_SALE) || 'null');
       if (!d) return;
-      document.getElementById('saleDate').value = d.date||'';
-      sales = d.sales||SALE_ROWS.map(()=>({qty:0,u:0}));
+      document.getElementById('saleDate').value = d.date || '';
+      sales = d.sales || DESTS.map(() => ({ qty: 0, u: 0, price: 0 }));
       renderSales();
-      document.getElementById('saleMemo').value = d.memo||'';
+      document.getElementById('saleMemo').value = d.memo || '';
+      showToast('✅ 下書きを復元しました');
     }
     document.getElementById('draftBar').classList.add('hidden');
-    showToast('✅ 下書きを復元しました');
-  } catch(e) { showToast('❌ 復元に失敗しました'); }
+  } catch(e) { showToast('❌ 復元に失敗しました: ' + e.message); }
 }
+
 function clearDraft() {
   localStorage.removeItem(DRAFT_KEY_WORK);
   localStorage.removeItem(DRAFT_KEY_SALE);
   document.getElementById('draftBar').classList.add('hidden');
   showToast('🗑 下書きを破棄しました');
 }
+
 function checkDraft() {
   const w = localStorage.getItem(DRAFT_KEY_WORK);
   if (!w) return;
   try {
     const d = JSON.parse(w);
-    document.getElementById('draftMsg').textContent = `💾 下書きあり${d.savedAt?'（'+d.savedAt+' 保存）':''}`;
+    document.getElementById('draftMsg').textContent =
+      `💾 下書きあり${d.savedAt ? '（' + d.savedAt + ' 保存）' : ''}`;
     document.getElementById('draftBar').classList.remove('hidden');
   } catch(e) {}
 }
 
 // ============================================================
-// 修正タブ
+// 送信
 // ============================================================
-function onEditTypeChange() {
-  // ログ種類変更時はフォームをリセット
-  document.getElementById('editArea').classList.add('hidden');
-  document.getElementById('editNotFound').classList.add('hidden');
-}
-
-async function loadEditLog() {
-  const date    = document.getElementById('editDate').value;
-  const logType = document.getElementById('editType').value;
-  if (!date) { showToast('日付を選択してください'); return; }
-
-  document.getElementById('editArea').classList.add('hidden');
-  document.getElementById('editNotFound').classList.add('hidden');
-  showToast('🔍 ログを取得中...');
+async function submit() {
+  const btn = document.querySelector('.submit-btn');
+  btn.style.background = '#888';
+  btn.innerHTML = '<span>⏳</span><span>送信中...</span>';
+  btn.disabled = true;
 
   try {
-    const data = await fetchGASGet({ action: 'getLog', type: logType, date });
-    console.log('[getLog] レスポンス:', data);
+    let payload;
+    let userId = 'LIFF';
+    try { userId = (await liff.getProfile()).userId; } catch(e) {}
 
-    if (!data || data.error || !data.log) {
-      document.getElementById('editNotFound').classList.remove('hidden');
-      document.getElementById('editNotFound').textContent =
-        `⚠️ ${date} の${logType === 'work' ? '作業' : logType === 'sale' ? '出荷' : '防除'}ログが見つかりませんでした`;
-      return;
+    if (currentTab === 'work') {
+      const dateVal    = document.getElementById('workDate').value;
+      const weather    = document.getElementById('weather').value;
+      const alertText  = document.getElementById('alertText').value.trim();
+      const alertTags  = Array.from(alertSelected).join('・');
+      const alertFull  = [alertTags, alertText].filter(Boolean).join(' / ') || 'なし';
+
+      const workEntries = entries.map(e => ({
+        worker: WORKERS[e.w] ? WORKERS[e.w].name : '—',
+        field:  FIELDS[e.f],
+        crop:   CROPS[e.c]  ? CROPS[e.c].name   : '—',
+        work:   e.k,
+        hours:  e.h,
+      }));
+
+      payload = {
+        type: 'daily', date: dateVal, weather,
+        temperature: tempVal, wind_speed: windVal,
+        body_feeling: feeling, alerts: alertFull,
+        user_id: userId, work_entries: workEntries,
+        input_method: 'LIFF',
+      };
+    } else {
+      // 出荷数を最新値から読み直す
+      DESTS.forEach((_,i) => {
+        const el = document.getElementById(`q${i}`);
+        if (el) sales[i].qty = parseInt(el.value)||0;
+        const ep = document.getElementById(`p${i}`);
+        if (ep) sales[i].price = parseInt(ep.value)||0;
+      });
+      const dateVal = document.getElementById('saleDate').value;
+      const memo    = document.getElementById('saleMemo').value.trim();
+      const saleRows = DESTS.map((dest, i) => ({
+        dest: dest.name,
+        qty:  sales[i] ? sales[i].qty : 0,
+        unit: UNITS[sales[i] ? sales[i].u : 0],
+        unit_price: sales[i] ? (sales[i].price || 0) : 0,
+        amount: sales[i] ? (sales[i].qty || 0) * (sales[i].price || 0) : 0,
+      })).filter(r => r.qty > 0);
+
+      payload = {
+        type: 'sales', date: dateVal, sales: saleRows, memo,
+        input_method: 'LIFF',
+      };
     }
-    editLogData = { type: logType, date, ...data.log };
-    renderEditForm(logType, data.log);
-    document.getElementById('editArea').classList.remove('hidden');
-    showToast('✅ ログを読み込みました');
-  } catch(e) {
-    console.error('[getLog] エラー:', e);
-    // フォールバック: 空フォームを表示
-    editLogData = { type: logType, date };
-    renderEditForm(logType, null);
-    document.getElementById('editArea').classList.remove('hidden');
-    showToast('⚠️ データ取得失敗 — 手入力で修正してください');
-  }
-}
 
-function renderEditForm(logType, log) {
-  ['editWork','editSale','editPest'].forEach(id => document.getElementById(id).classList.add('hidden'));
-
-  // ── 作業ログ修正 ─────────────────────────────────────────────
-  if (logType === 'work') {
-    document.getElementById('editWork').classList.remove('hidden');
-    const header = log?.header || {};
-    const workRows = log?.work_rows || [];
-
-    // 既存データからentriesを復元（なければデフォルト1行）
-    editEntries = workRows.length > 0 ? workRows.map(r => ({
-      w: Math.max(0, WORKERS.indexOf(r['作業者名'] || r['作業者ID']) ),
-      f: Math.max(0, FIELDS.indexOf(r['区画CD'] || '')),
-      c: Math.max(0, CROPS.indexOf(r['作物名'] || r['作物CD'] || '')),
-      k: r['作業名（テキスト）'] || r['作業CD'] || WORK_GROUPS[0].items[0],
-      h: (Number(r['作業時間(分)']) || 120) / 60,
-    })) : [{ w:0, f:0, c:0, k:WORK_GROUPS[0].items[0], h:2.0 }];
-
-    const f = document.getElementById('editWorkFields');
-    f.innerHTML = `
-      <div class="form-row col2">
-        <div class="form-group"><label>日付</label>
-          <input type="date" id="ew_date" value="${log?.date||document.getElementById('editDate').value}"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-        </div>
-        <div class="form-group"><label>天気</label>
-          <div class="select-wrap"><select id="ew_weather">
-            ${['晴れ','晴れ時々曇り','曇り','曇り時々雨','雨'].map(w =>
-              `<option${(header['天気']||'晴れ')===w?' selected':''}>${w}</option>`).join('')}
-          </select></div>
-        </div>
-      </div>
-      <div class="form-row col3">
-        <div class="form-group"><label>気温(℃)</label>
-          <input type="number" id="ew_temp" value="${header['気温(℃)']||15}"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-        </div>
-        <div class="form-group"><label>風速(m)</label>
-          <input type="number" id="ew_wind" value="${header['風速(m/s)']||3}"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-        </div>
-        <div class="form-group"><label>体感</label>
-          <div class="select-wrap"><select id="ew_feel">
-            ${['非常に寒い','寒い','普通','暑い','非常に暑い'].map(v =>
-              `<option${(header['体感']||'普通')===v?' selected':''}>${v}</option>`).join('')}
-          </select></div>
-        </div>
-      </div>
-      <div style="font-size:13px;font-weight:700;color:var(--green);margin:12px 0 8px">🔨 作業内容</div>
-      <div id="editEntryList"></div>
-      <button class="add-btn" onclick="addEditEntry()" style="margin-top:8px">＋ 作業行を追加</button>`;
-    renderEditEntries();
-
-  // ── 出荷ログ修正 ─────────────────────────────────────────────
-  } else if (logType === 'sale') {
-    document.getElementById('editSale').classList.remove('hidden');
-    const rows   = log?.rows || [];
-    const destQtyMap = {};
-    rows.forEach(r => {
-      const dest = r['販売先名'] || r['販売先ID'] || '';
-      if (!destQtyMap[dest]) destQtyMap[dest] = { qty: 0, unit: r['単位']||'袋', gram: 100 };
-      destQtyMap[dest].qty += Number(r['数量'] || 0);
-    });
-
-    const f = document.getElementById('editSaleFields');
-    f.innerHTML = `
-      <div class="form-row col2">
-        <div class="form-group"><label>出荷日</label>
-          <input type="date" id="es_date" value="${log?.date||document.getElementById('editDate').value}"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-        </div>
-        <div class="form-group"><label>100gあたり単価(円)</label>
-          <input type="number" id="es_price" value="" min="0" inputmode="numeric"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit"
-            placeholder="例: 50" oninput="recalcEditSale()">
-        </div>
-      </div>
-      <p style="font-size:11px;color:var(--muted);margin-bottom:10px">各出荷先の数量・単位・内容量を修正してください</p>
-      ${SALE_ROWS.map((dest, i) => {
-        const s = destQtyMap[dest] || { qty: 0, unit: '袋', gram: 100 };
-        return `
-        <div style="background:var(--green-pale);border-radius:10px;padding:12px;margin-bottom:10px;border:1.5px solid var(--green-light)">
-          <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">${dest}</div>
-          <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">
-            <div style="flex:2;min-width:80px">
-              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">数量</div>
-              <input type="number" id="es_q${i}" value="${s.qty}"
-                min="0" inputmode="numeric"
-                style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:18px;font-weight:700;text-align:right;font-family:inherit"
-                oninput="recalcEditSale()">
-            </div>
-            <div style="flex:1;min-width:60px">
-              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">単位</div>
-              <div class="select-wrap">
-                <select id="es_u${i}" style="padding:10px 24px 10px 8px;font-size:13px"
-                  onchange="document.getElementById('es_g${i}').value=_defaultGram(this.value);recalcEditSale()">
-                  ${UNITS.map(u=>`<option${u===s.unit?' selected':''}>${u}</option>`).join('')}
-                </select>
-              </div>
-            </div>
-            <div style="flex:1;min-width:70px">
-              <div style="font-size:10px;color:var(--muted);margin-bottom:2px">内容量(g)</div>
-              <input type="number" id="es_g${i}" value="${s.gram||_defaultGram(s.unit)}"
-                min="1" inputmode="numeric"
-                style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;text-align:right"
-                oninput="recalcEditSale()">
-            </div>
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px;text-align:right" id="es_calc${i}"></div>
-        </div>`;
-      }).join('')}
-      <div style="background:#fff3e0;border-radius:8px;padding:10px 12px;font-size:13px;font-weight:700;color:#e65100" id="es_total">合計: —</div>
-      <div class="form-group" style="margin-top:10px"><label>備考</label>
-        <textarea id="es_memo" rows="2" class="alert-input">${rows[0]?.['メモ']||''}</textarea>
-      </div>`;
-    recalcEditSale();
-
-  // ── 防除ログ修正 ─────────────────────────────────────────────
-  } else if (logType === 'pest') {
-    document.getElementById('editPest').classList.remove('hidden');
-    const rows = log?.rows || [];
-    const first = rows[0] || {};
-    // 圃場別散布量を復元
-    const fieldVolMap = {};
-    rows.forEach(r => {
-      const cd = r['区画CD'] || r['区画名'] || '';
-      if (cd) fieldVolMap[cd] = Number(r['散布量(L)']) || 0;
-    });
-
-    const f = document.getElementById('editPestFields');
-    f.innerHTML = `
-      <div class="form-row col2">
-        <div class="form-group"><label>散布日</label>
-          <input type="date" id="ep_date" value="${log?.date||document.getElementById('editDate').value}"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-        </div>
-        <div class="form-group"><label>担当者</label>
-          <div class="select-wrap"><select id="ep_worker">
-            ${WORKERS.map((w,i)=>`<option value="${i}"${first['担当者ID']&&first['担当者ID']===w?' selected':''}>${w}</option>`).join('')}
-          </select></div>
-        </div>
-      </div>
-      <div class="form-row col2">
-        <div class="form-group"><label>天候</label>
-          <div class="select-wrap"><select id="ep_weather">
-            ${['晴','曇','晴のち曇','曇のち晴','小雨'].map(w=>
-              `<option${first['天候']===w?' selected':''}>${w}</option>`).join('')}
-          </select></div>
-        </div>
-        <div class="form-group"><label>気温(℃)</label>
-          <input type="number" id="ep_temp" value="${first['気温(℃)']||20}"
-            style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit">
-        </div>
-      </div>
-      <div class="form-group" style="margin-bottom:10px"><label>薬品</label>
-        <div class="select-wrap"><select id="ep_cd" onchange="onEditPestSelect()">
-          ${pesticideMaster.map(p=>
-            `<option value="${p.cd}"${first['薬品CD']===p.cd?' selected':''}>${p.name}（IRAC:${p.irac||'-'}）</option>`
-          ).join('')}
-        </select></div>
-      </div>
-      <div id="ep_info" class="info-box" style="margin-bottom:10px;display:none"><span id="ep_info_text"></span></div>
-      <div style="font-size:13px;font-weight:700;color:var(--green);margin-bottom:8px">🗺 圃場別 散布量(L)</div>
-      ${fieldMaster.map((field, i) => {
-        const vol = fieldVolMap[field.cd] || fieldVolMap[field.name] || 0;
-        return `
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--green-light)">
-          <div style="flex:0 0 90px">
-            <div style="font-size:13px;font-weight:700;color:var(--green)">${field.name}</div>
-            <div style="font-size:10px;color:var(--muted)">${field.area?field.area+'a':'面積未登録'}</div>
-          </div>
-          <input type="number" id="ep_v${i}" value="${vol||''}"
-            min="0" step="1" inputmode="numeric" placeholder="—"
-            style="flex:1;padding:10px;border:1.5px solid var(--border);border-radius:8px;font-size:16px;font-weight:700;text-align:right;font-family:inherit"
-            oninput="recalcEditPestTotal()">
-          <div style="font-size:12px;color:var(--muted);flex:0 0 20px">L</div>
-        </div>`;
-      }).join('')}
-      <div style="background:#e8f5e9;border-radius:8px;padding:10px 12px;margin-top:8px;font-size:13px;font-weight:700;color:#2e7d32" id="ep_total">
-        合計: — L / — a
-      </div>
-      <div class="form-group" style="margin-top:10px"><label>備考</label>
-        <textarea id="ep_memo" rows="2" class="alert-input">${first['備考']||''}</textarea>
-      </div>`;
-    recalcEditPestTotal();
-    onEditPestSelect();
-  }
-}
-
-// ── 作業ログ修正用エントリー ──────────────────────────────────
-let editEntries = [];
-
-function addEditEntry() {
-  const last = editEntries[editEntries.length-1] || {};
-  editEntries.push({ w: last.w||0, f: last.f||0, c: last.c||0, k: last.k||WORK_GROUPS[0].items[0], h: 2.0 });
-  renderEditEntries();
-}
-
-function removeEditEntry(i) {
-  if (editEntries.length <= 1) return;
-  editEntries.splice(i, 1);
-  renderEditEntries();
-}
-
-function renderEditEntries() {
-  const el = document.getElementById('editEntryList');
-  if (!el) return;
-  el.innerHTML = editEntries.map((e, i) => `
-    <div class="entry-card">
-      <span class="entry-num">${i+1}</span>
-      ${i>0 ? `<button class="entry-del" onclick="removeEditEntry(${i})">×</button>` : ''}
-      <div class="form-row col2" style="margin-top:8px">
-        <div class="form-group"><label>作業者</label>
-          <div class="select-wrap"><select id="ee_w${i}">
-            ${WORKERS.map((w,j)=>`<option${j===e.w?' selected':''}>${w}</option>`).join('')}
-          </select></div>
-        </div>
-        <div class="form-group"><label>区画</label>
-          <div class="select-wrap"><select id="ee_f${i}">
-            ${FIELDS.map((f,j)=>`<option${j===e.f?' selected':''}>${f}</option>`).join('')}
-          </select></div>
-        </div>
-      </div>
-      <div class="form-row col3">
-        <div class="form-group"><label>作物</label>
-          <div class="select-wrap"><select id="ee_c${i}">
-            ${CROPS.map((c,j)=>`<option${j===e.c?' selected':''}>${c}</option>`).join('')}
-          </select></div>
-        </div>
-        <div class="form-group"><label>作業</label>
-          ${selWork('ee_k'+i, e.k)}
-        </div>
-        <div class="form-group">
-          <label>時間</label>
-          <div class="stepper">
-            <button onclick="stepEditH(${i},-0.25)">−</button>
-            <span id="eh${i}">${e.h.toFixed(2)}</span>
-            <button onclick="stepEditH(${i},0.25)">＋</button>
-          </div>
-        </div>
-      </div>
-    </div>`).join('');
-  editEntries.forEach((_, i) => {
-    document.getElementById(`ee_w${i}`)?.addEventListener('change', e => { editEntries[i].w = e.target.selectedIndex; });
-    document.getElementById(`ee_f${i}`)?.addEventListener('change', e => { editEntries[i].f = e.target.selectedIndex; });
-    document.getElementById(`ee_c${i}`)?.addEventListener('change', e => { editEntries[i].c = e.target.selectedIndex; });
-    document.querySelector(`.ee_k${i}`)?.addEventListener('change', e => { editEntries[i].k = e.target.value; });
-  });
-}
-
-function stepEditH(i, delta) {
-  editEntries[i].h = Math.max(0.25, Math.min(24, editEntries[i].h + delta));
-  document.getElementById(`eh${i}`).textContent = editEntries[i].h.toFixed(2);
-}
-
-// ── 出荷修正: kg/金額リアルタイム計算 ─────────────────────────
-function recalcEditSale() {
-  const unitPrice = parseFloat(document.getElementById('es_price')?.value || 0) || 0;
-  let totalKg = 0, totalAmt = 0;
-  SALE_ROWS.forEach((_, i) => {
-    const qty  = parseInt(document.getElementById(`es_q${i}`)?.value || 0) || 0;
-    const gram = parseInt(document.getElementById(`es_g${i}`)?.value || 100) || 0;
-    const kg   = qty * gram / 1000;
-    const amt  = unitPrice > 0 && gram > 0 ? qty * gram / 100 * unitPrice : 0;
-    totalKg += kg; totalAmt += amt;
-    const calcEl = document.getElementById(`es_calc${i}`);
-    if (calcEl) calcEl.textContent = gram > 0
-      ? `→ ${kg.toFixed(2)}kg${unitPrice > 0 ? ' / ¥'+Math.round(amt).toLocaleString() : ''}`
-      : '';
-  });
-  const tot = document.getElementById('es_total');
-  if (tot) tot.textContent = `合計: ${totalKg.toFixed(2)}kg` +
-    (unitPrice > 0 ? ` / ¥${Math.round(totalAmt).toLocaleString()}` : '');
-}
-
-// ── 防除修正: 圃場合計リアルタイム計算 ───────────────────────
-function recalcEditPestTotal() {
-  let totalVol = 0, totalArea = 0;
-  fieldMaster.forEach((f, i) => {
-    const v = parseFloat(document.getElementById(`ep_v${i}`)?.value || 0) || 0;
-    if (v > 0) { totalVol += v; totalArea += (f.area || 0); }
-  });
-  const bar = document.getElementById('ep_total');
-  if (bar) bar.textContent =
-    `合計: 散布量 ${totalVol > 0 ? totalVol.toFixed(0) : '—'} L　/　面積 ${totalArea > 0 ? totalArea.toFixed(2) : '—'} a`;
-}
-
-function onEditPestSelect() {
-  const cd   = document.getElementById('ep_cd')?.value;
-  const pest = pesticideMaster.find(p => p.cd === cd);
-  const info = document.getElementById('ep_info');
-  const text = document.getElementById('ep_info_text');
-  if (pest && info && text) {
-    text.innerHTML =
-      `<b>${pest.name}</b>（IRAC: ${pest.irac||'—'}）<br>` +
-      `対象: ${pest.target||'—'}　希釈: ${pest.dilution||'—'}　使用時期: ${pest.timing||'—'}<br>` +
-      `使用上限: <b>${pest.limit!==null ? pest.limit+'回' : '—'}</b>`;
-    info.style.display = 'block';
-  }
-}
-
-async function submitEdit() {
-  const logType = document.getElementById('editType').value;
-  let payload = { type: 'edit', log_type: logType, input_method: 'LIFF', user_id: currentUserId };
-
-  if (logType === 'work') {
-    payload.date         = document.getElementById('ew_date').value;
-    payload.weather      = document.getElementById('ew_weather').value;
-    payload.temperature  = parseFloat(document.getElementById('ew_temp').value) || 15;
-    payload.wind_speed   = parseFloat(document.getElementById('ew_wind').value) || 3;
-    payload.body_feeling = document.getElementById('ew_feel').value;
-    payload.work_entries = editEntries.map((e, i) => ({
-      worker: document.getElementById(`ee_w${i}`)?.value || WORKERS[e.w],
-      field:  document.getElementById(`ee_f${i}`)?.value || FIELDS[e.f],
-      crop:   document.getElementById(`ee_c${i}`)?.value || CROPS[e.c],
-      work:   document.querySelector(`.ee_k${i}`)?.value || e.k,
-      hours:  e.h,
-    }));
-
-  } else if (logType === 'sale') {
-    payload.date  = document.getElementById('es_date').value;
-    payload.memo  = document.getElementById('es_memo').value;
-    payload.unit_price_per_100g = parseFloat(document.getElementById('es_price').value) || 0;
-    payload.sales = SALE_ROWS.map((dest, i) => {
-      const qty  = parseInt(document.getElementById(`es_q${i}`)?.value || 0) || 0;
-      const unit = document.getElementById(`es_u${i}`)?.value || '袋';
-      const gram = parseInt(document.getElementById(`es_g${i}`)?.value || 100) || 100;
-      const kg   = qty * gram / 1000;
-      return { dest, qty, unit, gram_per_unit: gram, kg };
-    }).filter(r => r.qty > 0);
-
-  } else if (logType === 'pest') {
-    const cd   = document.getElementById('ep_cd').value;
-    const pest = pesticideMaster.find(p => p.cd === cd) || {};
-    payload.date           = document.getElementById('ep_date').value;
-    payload.pesticide_cd   = cd;
-    payload.pesticide_name = pest.name || cd;
-    payload.kubun          = pest.kubun || '';
-    payload.dilution       = pest.dilution || '';
-    payload.weather        = document.getElementById('ep_weather').value;
-    payload.temperature    = parseFloat(document.getElementById('ep_temp').value) || 20;
-    payload.worker_id      = document.getElementById('ep_worker').value;
-    payload.memo           = document.getElementById('ep_memo').value;
-    payload.fields         = fieldMaster.map((f, i) => {
-      const v = parseFloat(document.getElementById(`ep_v${i}`)?.value || 0) || 0;
-      return { cd: f.cd, name: f.name, area_a: f.area || 0, volume_l: v };
-    }).filter(f => f.volume_l > 0);
-    if (payload.fields.length === 0) { showToast('⚠️ 散布量を入力してください'); return; }
-  }
-
-  await sendToGAS(payload, '✏️ 修正を送信しました');
-}
-
-// ============================================================
-// 送信（タブ別）
-// ============================================================
-async function submitWork() {
-  const dateVal   = document.getElementById('workDate').value;
-  const weather   = document.getElementById('weather').value;
-  const alertText = document.getElementById('alertText').value.trim();
-  const alertTags = Array.from(alertSelected).join('・');
-  const alertFull = [alertTags, alertText].filter(Boolean).join(' / ') || 'なし';
-  const workEntries = entries.map(e => ({
-    worker: WORKERS[e.w], field: FIELDS[e.f], crop: CROPS[e.c], work: e.k, hours: e.h,
-  }));
-  const payload = {
-    type: 'daily', date: dateVal, weather, temperature: tempVal, wind_speed: windVal,
-    body_feeling: feeling, alerts: alertFull, user_id: currentUserId,
-    work_entries: workEntries, input_method: 'LIFF',
-  };
-  const ok = await sendToGAS(payload, `✅ 作業ログを登録しました（${entries.length}件）`);
-  if (ok) {
-    localStorage.removeItem(DRAFT_KEY_WORK);
-    document.getElementById('draftBar').classList.add('hidden');
-    alertSelected.clear();
-    document.querySelectorAll('.alert-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById('alertText').value = '';
-    entries = [];
-    addEntry();
-  }
-}
-
-async function submitSale() {
-  const dateVal   = document.getElementById('saleDate').value;
-  const memo      = document.getElementById('saleMemo').value.trim();
-  const unitPrice = parseFloat(document.getElementById('saleUnitPrice').value) || 0;
-  const saleRows  = SALE_ROWS.map((dest, i) => {
-    const qty  = parseInt(document.getElementById(`q${i}`)?.value || '0') || 0;
-    const unit = document.getElementById(`u${i}`)?.value || '袋';
-    const gram = parseInt(document.getElementById(`gram${i}`)?.value || '100') || 100;
-    const kg   = qty * gram / 1000;
-    const amt  = unitPrice > 0 && gram > 0 ? qty * gram / 100 * unitPrice : 0;
-    return { dest, qty, unit, gram_per_unit: gram, kg, amount: amt };
-  }).filter(r => r.qty > 0);
-
-  if (saleRows.length === 0) { showToast('⚠️ 数量を入力してください'); return; }
-
-  const payload = {
-    type: 'sales', date: dateVal, sales: saleRows,
-    unit_price_per_100g: unitPrice,
-    memo, input_method: 'LIFF',
-  };
-  const ok = await sendToGAS(payload, `🚚 出荷データを登録しました（${saleRows.length}件）`);
-  if (ok) {
-    localStorage.removeItem(DRAFT_KEY_SALE);
-    document.getElementById('draftBar').classList.add('hidden');
-    sales = SALE_ROWS.map(() => ({ qty: 0, unit: '袋', gram: 100 }));
-    renderSales();
-    document.getElementById('saleMemo').value = '';
-    document.getElementById('saleUnitPrice').value = '';
-  }
-}
-
-async function submitPest() {
-  const cd      = document.getElementById('pestCd').value;
-  const pest    = pesticideMaster.find(p => p.cd === cd) || {};
-  const workerEl= document.getElementById('pestWorker');
-
-  // 圃場別散布量を収集
-  const fields = fieldMaster
-    .map((f, i) => {
-      const v = parseFloat(document.getElementById(`pv${i}`)?.value || 0) || 0;
-      return { cd: f.cd, name: f.name, area_a: f.area || 0, volume_l: v };
-    })
-    .filter(f => f.volume_l > 0);
-
-  if (fields.length === 0) { showToast('⚠️ 少なくとも1圃場の散布量を入力してください'); return; }
-
-  const payload = {
-    type:           'pesticide',
-    input_method:   'LIFF',
-    date:           document.getElementById('pestDate').value,
-    pesticide_cd:   cd,
-    pesticide_name: pest.name || cd,
-    kubun:          pest.kubun   || '',
-    dilution:       pest.dilution || '',
-    weather:        document.getElementById('pestWeather').value,
-    temperature:    pestTempVal,
-    worker_id:      workerEl.value || '',
-    fields,          // 圃場別配列（縦持ちで記録）
-    memo:           document.getElementById('pestMemo').value,
-    user_id:        currentUserId,
-  };
-
-  const totalVol  = fields.reduce((s, f) => s + f.volume_l, 0);
-  const totalArea = fields.reduce((s, f) => s + (f.area_a || 0), 0);
-  const ok = await sendToGAS(
-    payload,
-    `🌿 防除実績を登録しました（${fields.length}圃場 / 合計${totalVol}L / ${totalArea.toFixed(1)}a）`
-  );
-  if (ok) {
-    // 入力リセット
-    fieldMaster.forEach((_, i) => {
-      const el = document.getElementById(`pv${i}`);
-      if (el) el.value = '';
-    });
-    recalcPestTotal();
-    document.getElementById('pestMemo').value = '';
-    document.getElementById('pestCountBanner').style.display = 'none';
-    updatePestCountBanner();
-  }
-}
-
-// ============================================================
-// GAS共通送信
-// ============================================================
-
-// ============================================================
-// JSONP取得（GAS GETのCORSを回避）
-// ============================================================
-function fetchGASGet(params) {
-  return new Promise((resolve, reject) => {
-    const cbName = 'gasCallback_' + Date.now();
-    const qs = Object.entries(params).map(([k,v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-    const url = `${GAS_URL}?${qs}&callback=${cbName}`;
-    console.log('[JSONP] リクエスト開始:', url);
-    const script = document.createElement('script');
-    const timer = setTimeout(() => {
-      console.error('[JSONP] タイムアウト(10秒)。GASへの到達確認が必要:', url);
-      cleanup();
-      reject(new Error('JSONP timeout'));
-    }, 10000);
-    window[cbName] = (data) => {
-      console.log('[JSONP] コールバック受信成功:', params.action, data);
-      cleanup();
-      resolve(data);
-    };
-    function cleanup() {
-      clearTimeout(timer);
-      delete window[cbName];
-      if (script.parentNode) script.parentNode.removeChild(script);
-    }
-    script.onerror = (e) => {
-      console.error('[JSONP] script.onerror（GAS URLへの到達失敗）:', url);
-      cleanup();
-      reject(new Error('JSONP error'));
-    };
-    script.onload = () => {
-      // onloadが呼ばれてもコールバックが未呼び出しならGASがJSONPを返していない
-      console.log('[JSONP] script.onload:', url, '/ コールバック定義:', typeof window[cbName]);
-    };
-    script.src = url;
-    console.log('[JSONP] scriptタグをdocument.headに追加');
-    document.head.appendChild(script);
-  });
-}
-
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbyLnQf7vvGLap73aKKiNH8MV6Rf82OxiZVYf02Po8V1cl98Yd-HhGU2t5Kb132pUQ3f/exec';
-
-async function sendToGAS(payload, successMsg) {
-  showToast('⏳ 送信中...');
-  try {
     await fetch(GAS_URL, {
       method: 'POST', mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
     });
-    showToast(successMsg);
-    return true;
+
+    const msg = currentTab === 'work'
+      ? `✅ 日報を送信しました（${entries.length}件）\nLINEグループに通知されます`
+      : `🚚 出荷データを送信しました\nLINEグループに通知されます`;
+    showToast(msg);
+
+    localStorage.removeItem(DRAFT_KEY_WORK);
+    localStorage.removeItem(DRAFT_KEY_SALE);
+    document.getElementById('draftBar').classList.add('hidden');
+
+    if (currentTab === 'work') {
+      alertSelected.clear();
+      document.querySelectorAll('.alert-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('alertText').value = '';
+      entries = [];
+      addEntry();
+    } else {
+      sales = DESTS.map(() => ({ qty: 0, u: 0, price: 0 }));
+      renderSales();
+      document.getElementById('saleMemo').value = '';
+    }
+
   } catch(err) {
     showToast('❌ 送信エラー: ' + err.message);
-    return false;
+    console.error(err);
+  } finally {
+    btn.style.background = 'var(--green)';
+    btn.innerHTML = '<span>💾</span><span id="submitLabel">' +
+      (currentTab === 'work' ? '日報を登録する' : '出荷データを登録する') + '</span>';
+    btn.disabled = false;
   }
 }
 
@@ -1375,4 +1160,3 @@ init();
 </script>
 </body>
 </html>
- 
