@@ -1368,7 +1368,7 @@ async function submit() {
         user_id: userId, work_entries: workEntries,
         input_method: 'LIFF',
       };
-    } else {
+    } else if (currentTab === 'sale') {
       // 出荷数を最新値から読み直す
       DESTS.forEach((_,i) => {
         const el = document.getElementById(`q${i}`);
