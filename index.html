@@ -879,7 +879,7 @@ async function init() {
   // LIFF初期化
   let userId = 'LIFF';
   try {
-    await liff.init({ liffId: '2009446922-hoUkWLnQ' });
+    await liff.init({ liffId: '2009498715-Ti30qYpZ' });
     if (!liff.isLoggedIn()) { liff.login(); return; }
     const profile = await liff.getProfile();
     document.getElementById('userName').textContent = profile.displayName;
