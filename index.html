@@ -1132,7 +1132,7 @@ async function submit() {
       entries = [];
       addEntry();
     } else {
-      sales = DESTS.map(() => ({ qty: 0, u: 0, price: 0 }));
+      sales = DESTS.map((_, i) => ({ qty: 0, u: sales[i] ? sales[i].u : 0, price: sales[i] ? sales[i].price : 0 }));
       renderSales();
       document.getElementById('saleMemo').value = '';
     }
