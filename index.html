@@ -806,7 +806,7 @@
 // ============================================================
 // マスタデータ（GASから動的取得、フォールバックあり）
 // ============================================================
-const GAS_URL = 'https://script.google.com/macros/s/AKfycbycXFxnyM244eGsGilYmVKEGvB7yuEdcAf17ajkT0KOr1FKxJp4RfTkthp9jruuP78r/exec';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyJOArZiYCWUprWZfQjbQDUJoJXBk6ZfAOYP_TQyohipShGhJ64f1tDFvMsIEpDd6rgvQ/exec';
 
 // 起動時にGASから取得して上書きされる
 let WORKERS = [];  // [{id, name, type}]
@@ -896,32 +896,58 @@ async function init() {
   document.getElementById('headerDate').textContent =
     `${today.getMonth()+1}/${today.getDate()}(${['日','月','火','水','木','金','土'][today.getDay()]})`;
 
-  // GASからマスタ取得（タイムアウト5秒）
-  try {
-    const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 5000);
-    const res  = await fetch(GAS_URL + '?action=getMasters', { signal: ctrl.signal });
-    clearTimeout(tid);
-    const data = await res.json();
-    if (data.status === 'ok') {
-      if (data.workers && data.workers.length > 0) WORKERS = data.workers;
-      else WORKERS = WORKERS_DEFAULT;
-      if (data.crops   && data.crops.length > 0)   CROPS   = data.crops;
-      else CROPS = CROPS_DEFAULT;
-      if (data.dests   && data.dests.length > 0)   DESTS   = data.dests;
-      else DESTS = DESTS_DEFAULT;
-      if (data.pesticides && data.pesticides.length > 0) PESTICIDES = data.pesticides;
-    } else {
-      throw new Error(data.message || 'API error');
-    }
-  } catch(e) {
-    console.warn('マスタ取得失敗、フォールバック使用:', e.message);
-    WORKERS = WORKERS_DEFAULT;
-    CROPS   = CROPS_DEFAULT;
-    DESTS   = DESTS_DEFAULT;
-  }
+  // GASからマスタ取得（JSONP方式・タイムアウト5秒）
+  await new Promise(resolve => {
+    const cbName = '_gasCallback_' + Date.now();
+    let done = false;
+    const tid = setTimeout(() => {
+      if (done) return;
+      done = true;
+      try { delete window[cbName]; } catch(e) {}
+      const s = document.getElementById('_gasJsonpScript');
+      if (s) s.remove();
+      console.warn('マスタ取得タイムアウト、フォールバック使用');
+      resolve();
+    }, 5000);
 
-  // ローディング非表示
+    window[cbName] = function(data) {
+      if (done) return;
+      done = true;
+      clearTimeout(tid);
+      try { delete window[cbName]; } catch(e) {}
+      const s = document.getElementById('_gasJsonpScript');
+      if (s) s.remove();
+      try {
+        if (data && data.status === 'ok') {
+          if (data.workers    && data.workers.length > 0)    WORKERS    = data.workers;
+          if (data.crops      && data.crops.length > 0)      CROPS      = data.crops;
+          if (data.dests      && data.dests.length > 0)      DESTS      = data.dests;
+          if (data.pesticides && data.pesticides.length > 0) PESTICIDES = data.pesticides;
+        }
+      } catch(e) { console.warn('マスタ適用エラー:', e.message); }
+      resolve();
+    };
+
+    try {
+      const script = document.createElement('script');
+      script.id  = '_gasJsonpScript';
+      script.src = GAS_URL + '?action=getMasters&callback=' + cbName;
+      script.onerror = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(tid);
+        console.warn('マスタ取得スクリプトエラー、フォールバック使用');
+        resolve();
+      };
+      document.head.appendChild(script);
+    } catch(e) {
+      clearTimeout(tid);
+      console.warn('マスタ取得失敗:', e.message);
+      resolve();
+    }
+  });
+
+  // ローディング非表示（必ず実行）
   document.getElementById('loadingOverlay').classList.add('hidden');
 
   addEntry();
