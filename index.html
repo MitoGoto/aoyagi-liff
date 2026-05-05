@@ -837,18 +837,18 @@ const FIELDS = ['太田1','太田2','太田3','太田4','太田5','太田6','太
 
 // 農薬マスタ（フォールバック12品目）
 const PEST_FALLBACK = [
-  {cd:'P001',name:'Zボルドー',          kubun:'殺菌',    irac:'M01', dilution:'400〜600倍', limit:6},
-  {cd:'P002',name:'ダントツ水溶剤',      kubun:'殺虫',    irac:'4A',  dilution:'2000〜4000倍', limit:3},
-  {cd:'P003',name:'アファーム乳剤',      kubun:'殺虫',    irac:'6',   dilution:'1000〜2000倍', limit:3},
-  {cd:'P004',name:'カスケード乳剤',      kubun:'殺虫',    irac:'15',  dilution:'1000〜2000倍', limit:3},
-  {cd:'P005',name:'オーソサイド水和剤',  kubun:'殺菌',    irac:'M04', dilution:'600〜800倍', limit:6},
-  {cd:'P006',name:'スコア顆粒水和剤',    kubun:'殺菌',    irac:'3',   dilution:'2000倍', limit:3},
-  {cd:'P007',name:'トップジンM水和剤',   kubun:'殺菌',    irac:'1',   dilution:'1000〜1500倍', limit:4},
-  {cd:'P008',name:'ハチハチ乳剤',        kubun:'殺虫',    irac:'12',  dilution:'1000〜2000倍', limit:3},
-  {cd:'P009',name:'プリロッソ顆粒水和剤',kubun:'殺虫',    irac:'28',  dilution:'2000倍', limit:3},
-  {cd:'P010',name:'モスピラン水溶剤',    kubun:'殺虫',    irac:'4A',  dilution:'2000〜4000倍', limit:4},
-  {cd:'P011',name:'ランネート45DF',      kubun:'殺虫',    irac:'1A',  dilution:'1000〜2000倍', limit:3},
-  {cd:'P012',name:'ゼンターリ顆粒水和剤',kubun:'殺虫',    irac:'11A', dilution:'500〜1000倍', limit:6},
+  {cd:'P001',name:'Zボルドー',              kubun:'殺菌',irac:'—',   dilution:'500倍',       limit:6,  timing:'—',      target:'斑点細菌病・褐斑細菌病・黒腐病・べと病'},
+  {cd:'P002',name:'ダントツ水溶剤',          kubun:'殺虫',irac:'4A',  dilution:'2000〜4000倍',limit:3,  timing:'収穫7日前',target:'アブラムシ類'},
+  {cd:'P003',name:'グレーシア乳剤',          kubun:'殺虫',irac:'30',  dilution:'3000倍',      limit:1,  timing:'収穫7日前',target:'コナガ・アオムシ・アザミウマ'},
+  {cd:'P004',name:'ディアナSC',              kubun:'殺虫',irac:'5',   dilution:'2500〜5000倍',limit:2,  timing:'収穫前日', target:'コナガ・アザミウマ類・ハスモンヨトウ'},
+  {cd:'P005',name:'トランスフォームフロアブル',kubun:'殺虫',irac:'4C',  dilution:'2000倍',      limit:3,  timing:'収穫前日', target:'アブラムシ類'},
+  {cd:'P006',name:'ブロフレアSC',            kubun:'殺虫',irac:'30',  dilution:'2000〜4000倍',limit:3,  timing:'収穫前日', target:'コナガ・アオムシ・キスジノミハムシ'},
+  {cd:'P007',name:'アニキ乳剤',              kubun:'殺虫',irac:'6',   dilution:'1000〜2000倍',limit:3,  timing:'収穫前日', target:'コナガ・ハスモンヨトウ・キスジノミハムシ・ハモグリバエ'},
+  {cd:'P008',name:'ウララDF',                kubun:'殺虫',irac:'29',  dilution:'4000倍',      limit:2,  timing:'収穫前日', target:'アブラムシ類'},
+  {cd:'P009',name:'フィールドマスト',          kubun:'殺虫',irac:'4E',  dilution:'4000倍',      limit:2,  timing:'収穫前日', target:'コナガ・ハスモンヨトウ・キスジノミハムシ・ハモグリバエ'},
+  {cd:'P010',name:'ライメイフロアブル',        kubun:'殺菌',irac:'—',   dilution:'—',           limit:3,  timing:'収穫3日前',target:'白さび病'},
+  {cd:'P011',name:'プレバソンフロアブル5',     kubun:'殺虫',irac:'28',  dilution:'2000倍',      limit:2,  timing:'収穫前日', target:'コナガ・ハモグリバエ類'},
+  {cd:'P012',name:'ゼンターリ顆粒水和剤',     kubun:'殺虫',irac:'11A', dilution:'1000〜2000倍',limit:99, timing:'収穫前日', target:'コナガ・アオムシ・ヨトウムシ・ハスモンヨトウ'},
 ];
 let PESTICIDES = PEST_FALLBACK.slice();
 
@@ -1102,14 +1102,17 @@ function renderPesticideInfo() {
   infoEl.classList.remove('hidden');
   cards.innerHTML = [...selectedPestCds].map(cd => {
     const p = PESTICIDES.find(x => x.cd === cd) || {};
+    const p = PESTICIDES.find(x => x.cd === cd) || {};
     return `<div class="pest-info-card">
       <div class="pest-info-card-name">✅ ${p.name || cd}</div>
       <div class="pest-info-row">
         <span class="pest-info-tag">区分: ${p.kubun || '—'}</span>
         <span class="pest-info-tag">IRAC: ${p.irac || '—'}</span>
         <span class="pest-info-tag">希釈: ${p.dilution || '—'}</span>
-        ${p.limit ? `<span class="pest-info-tag">年間上限: ${p.limit}回</span>` : ''}
+        ${p.limit && p.limit < 99 ? `<span class="pest-info-tag">年間上限: ${p.limit}回</span>` : ''}
+        ${p.timing ? `<span class="pest-info-tag">使用時期: ${p.timing}</span>` : ''}
       </div>
+      ${p.target ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">対象: ${p.target}</div>` : ''}
     </div>`;
   }).join('');
 }
