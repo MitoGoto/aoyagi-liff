@@ -657,6 +657,27 @@
     font-family: inherit;
     cursor: pointer;
   }
+
+  /* 数量・内容量のクイック増減（2026-08-17〜） */
+  .qty-step-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin: 4px 0 8px;
+  }
+  .step-label { font-size: 11px; color: var(--muted); margin-right: 2px; flex-shrink: 0; }
+  .step-chip {
+    padding: 5px 9px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: white;
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .step-chip:active { background: var(--green-light); border-color: var(--green-mid); color: var(--green); }
 </style>
 </head>
 <body>
@@ -1018,7 +1039,7 @@ async function init() {
   document.getElementById('loadingOverlay').classList.add('hidden');
 
   addEntry();
-  sales = DESTS.map(d => ({ qty: 0, u: 0, price: d.default_price || 0, contents_g: d.contents_g || 100 }));
+  sales = DESTS.map(d => ({ qty: 0, u: 0, price: d.default_price || 0, contents_g: 0 }));
   renderSales();
   renderPesticideList();
   renderFieldVolumes();
@@ -1244,6 +1265,13 @@ function renderSales() {
           ${UNITS.map((u,j)=>`<option${sales[i]&&j===sales[i].u?' selected':''}>${u}</option>`).join('')}
         </select>
       </div>
+      <div class="qty-step-row">
+        <span class="step-label">数量</span>
+        <button type="button" class="step-chip" onclick="adjustSaleQty(${i},-100)">−100</button>
+        <button type="button" class="step-chip" onclick="adjustSaleQty(${i},-10)">−10</button>
+        <button type="button" class="step-chip" onclick="adjustSaleQty(${i},10)">+10</button>
+        <button type="button" class="step-chip" onclick="adjustSaleQty(${i},100)">+100</button>
+      </div>
       <div class="sale-row-bottom">
         <div class="sale-price-label">単価(円)</div>
         <input
@@ -1264,14 +1292,21 @@ function renderSales() {
           inputmode="numeric"
           pattern="[0-9]*"
           min="1"
-          placeholder="100"
+          placeholder="0"
           value="${sales[i] && sales[i].contents_g ? sales[i].contents_g : ''}"
           id="g${i}"
-          onchange="sales[${i}].contents_g = parseInt(this.value)||100"
-          oninput="sales[${i}].contents_g = parseInt(this.value)||100"
+          onchange="sales[${i}].contents_g = parseInt(this.value)||0"
+          oninput="sales[${i}].contents_g = parseInt(this.value)||0"
         >
         <div class="sale-contents-unit">g/袋</div>
         <div class="sale-amount" id="a${i}">${sales[i] && sales[i].qty > 0 && sales[i].price > 0 ? '¥' + (sales[i].qty * sales[i].price).toLocaleString() : '—'}</div>
+      </div>
+      <div class="qty-step-row">
+        <span class="step-label">内容量</span>
+        <button type="button" class="step-chip" onclick="adjustSaleContents(${i},-100)">−100</button>
+        <button type="button" class="step-chip" onclick="adjustSaleContents(${i},-10)">−10</button>
+        <button type="button" class="step-chip" onclick="adjustSaleContents(${i},10)">+10</button>
+        <button type="button" class="step-chip" onclick="adjustSaleContents(${i},100)">+100</button>
       </div>
     </div>`).join('') +
     `<div class="sale-total-bar">合計金額 <span id="saleTotalAmount">${calcSaleTotals()}</span></div>`;
@@ -1294,6 +1329,24 @@ function calcSaleTotals() {
     total += qty * price;
   });
   return total > 0 ? '¥' + total.toLocaleString() : '—';
+}
+
+// 数量・内容量のクイック増減（±10 / ±100、2026-08-17〜）
+function adjustSaleQty(i, delta) {
+  if (!sales[i]) return;
+  const next = Math.max(0, (sales[i].qty || 0) + delta);
+  sales[i].qty = next;
+  const el = document.getElementById(`q${i}`);
+  if (el) el.value = next > 0 ? next : '';
+  calcSaleAmount(i);
+}
+
+function adjustSaleContents(i, delta) {
+  if (!sales[i]) return;
+  const next = Math.max(0, (sales[i].contents_g || 0) + delta);
+  sales[i].contents_g = next;
+  const el = document.getElementById(`g${i}`);
+  if (el) el.value = next > 0 ? next : '';
 }
 
 // ============================================================
@@ -1325,7 +1378,7 @@ function saveDraft() {
       const ep = document.getElementById(`p${i}`);
       if (ep) sales[i].price = parseInt(ep.value)||0;
       const eg = document.getElementById(`g${i}`);
-      if (eg) sales[i].contents_g = parseInt(eg.value)||100;
+      if (eg) sales[i].contents_g = parseInt(eg.value)||0;
     });
     const workDraft = {
       date: document.getElementById('workDate').value,
@@ -1374,7 +1427,7 @@ function loadDraft() {
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY_SALE) || 'null');
       if (!d) return;
       document.getElementById('saleDate').value = d.date || '';
-      sales = d.sales || DESTS.map(d => ({ qty: 0, u: 0, price: d.default_price || 0, contents_g: d.contents_g || 100 }));
+      sales = d.sales || DESTS.map(d => ({ qty: 0, u: 0, price: d.default_price || 0, contents_g: 0 }));
       renderSales();
       document.getElementById('saleMemo').value = d.memo || '';
       showToast('✅ 下書きを復元しました');
@@ -1565,7 +1618,7 @@ async function submit() {
         const ep = document.getElementById(`p${i}`);
         if (ep) sales[i].price = parseInt(ep.value)||0;
         const eg = document.getElementById(`g${i}`);
-        if (eg) sales[i].contents_g = parseInt(eg.value)||100;
+        if (eg) sales[i].contents_g = parseInt(eg.value)||0;
       });
       const dateVal = document.getElementById('saleDate').value;
       const memo    = document.getElementById('saleMemo').value.trim();
@@ -1575,7 +1628,7 @@ async function submit() {
         unit: UNITS[sales[i] ? sales[i].u : 0],
         unit_price:  sales[i] ? (sales[i].price || 0) : 0,
         amount:      sales[i] ? (sales[i].qty || 0) * (sales[i].price || 0) : 0,
-        contents_g:  sales[i] ? (sales[i].contents_g || 100) : 100,
+        contents_g:  sales[i] ? (sales[i].contents_g || 0) : 0,
       })).filter(r => r.qty > 0);
 
       payload = {
@@ -1641,7 +1694,7 @@ async function submit() {
       entries = [];
       addEntry();
     } else if (currentTab === 'sale') {
-      sales = DESTS.map((_, i) => ({ qty: 0, u: sales[i] ? sales[i].u : 0, price: sales[i] ? sales[i].price : 0, contents_g: sales[i] ? sales[i].contents_g : 100 }));
+      sales = DESTS.map((_, i) => ({ qty: 0, u: sales[i] ? sales[i].u : 0, price: sales[i] ? sales[i].price : 0, contents_g: 0 }));
       renderSales();
       document.getElementById('saleMemo').value = '';
     } else {
