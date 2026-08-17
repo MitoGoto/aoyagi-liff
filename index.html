@@ -597,6 +597,66 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .hidden { display: none !important; }
+
+  /* 記録の呼び出し（修正用プレビュー） */
+  .recall-btn {
+    margin-left: 8px;
+    padding: 7px 12px;
+    border: 1.5px solid var(--green-mid);
+    border-radius: 8px;
+    background: var(--green-pale);
+    color: var(--green);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .recall-btn:active { background: var(--green-light); }
+  .recall-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    z-index: 300;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .recall-panel {
+    background: white;
+    width: 100%;
+    max-width: 480px;
+    max-height: 78vh;
+    overflow-y: auto;
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+  }
+  .recall-panel h3 { margin: 0 0 4px; font-size: 15px; color: var(--green); }
+  .recall-note { font-size: 12px; color: var(--muted); margin-bottom: 12px; line-height: 1.5; }
+  .recall-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--green-light);
+    font-size: 13px;
+  }
+  .recall-row .k { color: var(--muted); flex-shrink: 0; }
+  .recall-row .v { text-align: right; font-weight: 600; word-break: break-all; }
+  .recall-block + .recall-block { margin-top: 14px; padding-top: 10px; border-top: 2px dashed var(--border); }
+  .recall-close {
+    margin-top: 14px;
+    width: 100%;
+    padding: 11px;
+    border: none;
+    border-radius: 10px;
+    background: var(--green);
+    color: white;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+  }
 </style>
 </head>
 <body>
@@ -634,6 +694,16 @@
 <!-- トースト -->
 <div class="toast" id="toast"></div>
 
+<!-- 記録呼び出しモーダル -->
+<div id="recallOverlay" class="recall-overlay hidden" onclick="if(event.target===this) closeRecallModal()">
+  <div class="recall-panel">
+    <h3 id="recallTitle">記録を確認</h3>
+    <div class="recall-note" id="recallNote"></div>
+    <div id="recallBody"></div>
+    <button class="recall-close" onclick="closeRecallModal()">閉じる</button>
+  </div>
+</div>
+
 <!-- ===== 作業ログタブ ===== -->
 <div id="tabWork" class="content">
 
@@ -643,7 +713,10 @@
     <div class="form-row">
       <div class="form-group">
         <label>日付</label>
-        <input type="date" id="workDate">
+        <div style="display:flex;align-items:center;gap:0">
+          <input type="date" id="workDate">
+          <button type="button" class="recall-btn" onclick="recallDay('work')">🔄 記録を確認</button>
+        </div>
       </div>
     </div>
     <div class="form-row col3">
@@ -725,7 +798,10 @@
   <div class="section">
     <div class="section-title">📅 出荷日</div>
     <div class="form-group">
-      <input type="date" id="saleDate">
+      <div style="display:flex;align-items:center;gap:0">
+        <input type="date" id="saleDate">
+        <button type="button" class="recall-btn" onclick="recallDay('sale')">🔄 記録を確認</button>
+      </div>
     </div>
   </div>
 
@@ -748,7 +824,10 @@
   <div class="section">
     <div class="section-title">📅 散布日</div>
     <div class="form-group">
-      <input type="date" id="pestDate">
+      <div style="display:flex;align-items:center;gap:0">
+        <input type="date" id="pestDate">
+        <button type="button" class="recall-btn" onclick="recallDay('pest')">🔄 記録を確認</button>
+      </div>
     </div>
   </div>
 
@@ -1320,6 +1399,122 @@ function checkDraft() {
       `💾 下書きあり${d.savedAt ? '（' + d.savedAt + ' 保存）' : ''}`;
     document.getElementById('draftBar').classList.remove('hidden');
   } catch(e) {}
+}
+
+// ============================================================
+// 記録の呼び出し（修正用プレビュー、2026-08-17〜）
+// ============================================================
+// GAS側は action=getLog で、その日の日報/出荷実績/防除実績を
+// 保存済みの生データ(実際のシートの列名をキーとするオブジェクト)のまま返す。
+// ここでは列名を厳密に決め打ちせず、既知のコード列(CD/ID)だけ名前に変換して
+// 汎用的に一覧表示する(=読み取り専用のプレビュー)。
+// 修正そのものは「このモーダルを見ながら、下のフォームに正しい内容を入力し直して
+// 同じ日付で送信する」ことで行う。work/salesは元々「同じ日付なら上書き」という
+// 挙動を持っており、pesticideも2026-08-17にGAS側を同じ挙動へ揃えた。
+const FIELD_CODE_TO_NAME = {
+  OTAH1:'太田1', OTAH2:'太田2', OTAH3:'太田3', OTAH4:'太田4',
+  OTAH5:'太田5', OTAH6:'太田6', OTAH:'太田ハウス',
+  IWA1:'岩名1', IWA2:'岩名2', IWA3:'岩名3', IWA4:'岩名4',
+};
+const RECALL_HIDE_KEYS = [
+  '日報ID','記録ID','出荷ID','No','スケジュールID','タイムスタンプ',
+  '記録日時','入力方法','ステータス','使用回数（今回）',
+];
+const RECALL_LABELS = { '日報日付':'日付', '出荷日':'日付', '実施日':'日付' };
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;',
+  }[c]));
+}
+
+function recallBeautify(key, val) {
+  if (val === '' || val === null || val === undefined) return '（未入力）';
+  if (/作業者|担当者|記録者/.test(key) && /CD|ID/.test(key)) {
+    const w = WORKERS.find(w => w.id === String(val));
+    if (w) return `${w.name}（${val}）`;
+  }
+  if (key === '作物CD') {
+    const c = CROPS.find(c => c.cd === String(val));
+    if (c) return c.name;
+  }
+  if (key === '区画CD') {
+    return FIELD_CODE_TO_NAME[String(val)] || (String(val) || '（なし）');
+  }
+  if (key === '販売先CD') {
+    const d = DESTS.find(d => d.cd === String(val));
+    if (d) return d.name;
+  }
+  if (key === '薬品CD') {
+    const p = PESTICIDES.find(p => p.cd === String(val));
+    if (p) return p.name;
+  }
+  if (/時間.*分|分$/.test(key)) {
+    const m = Number(val);
+    if (!isNaN(m) && m !== 0) return (m / 60).toFixed(1) + '時間';
+  }
+  return String(val);
+}
+
+function recallRowsHtml(obj) {
+  return Object.entries(obj || {})
+    .filter(([k]) => !RECALL_HIDE_KEYS.includes(k))
+    .map(([k, v]) => `<div class="recall-row"><span class="k">${escapeHtml(RECALL_LABELS[k] || k)}</span><span class="v">${escapeHtml(recallBeautify(k, v))}</span></div>`)
+    .join('');
+}
+
+async function recallDay(type) {
+  const dateId  = type === 'work' ? 'workDate' : type === 'sale' ? 'saleDate' : 'pestDate';
+  const dateVal = document.getElementById(dateId).value;
+  if (!dateVal) { showToast('❌ 日付を選択してください'); return; }
+
+  const overlay = document.getElementById('recallOverlay');
+  const titleEl = document.getElementById('recallTitle');
+  const noteEl  = document.getElementById('recallNote');
+  const bodyEl  = document.getElementById('recallBody');
+  const typeLabel = type === 'work' ? '日報' : type === 'sale' ? '出荷実績' : '防除実績';
+  titleEl.textContent = `📅 ${dateVal} の${typeLabel}`;
+  noteEl.textContent  = '読み込み中...';
+  bodyEl.innerHTML    = '';
+  overlay.classList.remove('hidden');
+
+  try {
+    const url  = `${GAS_URL}?action=getLog&date=${encodeURIComponent(dateVal)}&type=${type}`;
+    const ctrl = new AbortController();
+    const tid  = setTimeout(() => ctrl.abort(), 8000);
+    const res  = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(tid);
+    const data = await res.json();
+
+    if (data.error) { noteEl.textContent = '❌ ' + data.error; return; }
+    const log = data.log;
+    if (!log) {
+      noteEl.textContent = 'この日の記録はまだありません（このまま送信すると新規登録になります）。';
+      return;
+    }
+
+    noteEl.textContent = 'これは既に保存されている内容です。修正する場合は、下のフォームに正しい内容を入力し直して送信してください。同じ日付で送信すると、この記録が新しい内容に置き換わります。';
+
+    if (type === 'work') {
+      let html = `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">📋 基本情報</div>${recallRowsHtml(log.header)}</div>`;
+      (log.work_rows || []).forEach((row, i) => {
+        html += `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">👷 作業ログ ${i + 1}</div>${recallRowsHtml(row)}</div>`;
+      });
+      bodyEl.innerHTML = html;
+    } else {
+      const rows = log.rows || [];
+      const icon = type === 'sale' ? '🚚 出荷' : '🌿 防除';
+      bodyEl.innerHTML = rows.length
+        ? rows.map((row, i) => `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">${icon} ${i + 1}</div>${recallRowsHtml(row)}</div>`).join('')
+        : '<div class="recall-row"><span class="k">記録なし</span></div>';
+    }
+  } catch (e) {
+    noteEl.textContent = '❌ 読み込みに失敗しました: ' + e.message;
+  }
+}
+
+function closeRecallModal() {
+  document.getElementById('recallOverlay').classList.add('hidden');
 }
 
 // ============================================================
