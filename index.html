@@ -857,12 +857,17 @@ let selectedPestCds = new Set(); // 選択中の農薬CD（最大2）
 const UNITS  = ['袋','ケース','個','kg'];
 
 // フォールバック定義
+// 2026-08-17更新: 現在の作業者名簿(18名)に合わせて更新。
+// 麻友子(旧W002)・達也(旧W006)は現在不在のため削除。
+// あおやぎ助っ人・三浦菜々子・中井仁菜・矢島大暖・高橋紬・アグリ助っ人を新規追加(W013〜W018)。
+// 既存メンバーのIDは維持、ニックネーム表記(良枝・賢一・孝雄等)はフルネームに統一。
 const WORKERS_DEFAULT = [
   {id:'M001',name:'青柳匡彦',type:'M'},{id:'M002',name:'青柳絵瑠',type:'M'},{id:'M003',name:'藤井基貴',type:'M'},
-  {id:'W002',name:'麻友子',type:'W'},{id:'W003',name:'良枝',type:'W'},{id:'W004',name:'賢一',type:'W'},
-  {id:'W005',name:'孝雄',type:'W'},{id:'W006',name:'達也',type:'W'},{id:'W007',name:'恒川',type:'W'},
-  {id:'W008',name:'渡辺ゆき乃',type:'W'},{id:'W009',name:'桜庭 裕紀子',type:'W'},
-  {id:'W010',name:'花島 夢美',type:'W'},{id:'W011',name:'松本 美帆',type:'W'},{id:'W012',name:'小澤',type:'W'},
+  {id:'W009',name:'桜庭裕紀子',type:'W'},{id:'W010',name:'花島夢美',type:'W'},{id:'W011',name:'松本美帆',type:'W'},
+  {id:'W003',name:'青柳良江',type:'W'},{id:'W004',name:'青柳賢一',type:'W'},{id:'W005',name:'加藤孝雄',type:'W'},
+  {id:'W013',name:'あおやぎ助っ人',type:'W'},{id:'W008',name:'渡辺ゆき乃',type:'W'},{id:'W014',name:'三浦菜々子',type:'W'},
+  {id:'W015',name:'中井仁菜',type:'W'},{id:'W016',name:'矢島大暖',type:'W'},{id:'W017',name:'高橋紬',type:'W'},
+  {id:'W007',name:'恒川',type:'W'},{id:'W012',name:'小澤',type:'W'},{id:'W018',name:'アグリ助っ人',type:'W'},
 ];
 const CROPS_DEFAULT = [
   {cd:'KL',name:'ケール'},{cd:'MO',name:'もものすけ'},{cd:'SP',name:'さつまいも'},{cd:'TR',name:'トレビス'},{cd:'OT',name:'その他'}
@@ -1102,7 +1107,6 @@ function renderPesticideInfo() {
   infoEl.classList.remove('hidden');
   cards.innerHTML = [...selectedPestCds].map(cd => {
     const p = PESTICIDES.find(x => x.cd === cd) || {};
-    const p = PESTICIDES.find(x => x.cd === cd) || {};
     return `<div class="pest-info-card">
       <div class="pest-info-card-name">✅ ${p.name || cd}</div>
       <div class="pest-info-row">
@@ -1340,6 +1344,10 @@ async function submit() {
       const alertFull  = [alertTags, alertText].filter(Boolean).join(' / ') || 'なし';
 
       const workEntries = entries.map(e => ({
+        // worker_id: マスタ由来のIDをそのまま送る(2026-08-17〜)。
+        // GAS側はこれを最優先で使い、名前マッチングによる取りこぼしを防ぐ。
+        // worker: 後方互換・ログ確認用に氏名も併送。
+        worker_id: WORKERS[e.w] ? (WORKERS[e.w].id || '') : '',
         worker: WORKERS[e.w] ? WORKERS[e.w].name : '—',
         field:  FIELDS[e.f],
         crop:   CROPS[e.c]  ? CROPS[e.c].name   : '—',
