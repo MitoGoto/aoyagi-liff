@@ -933,7 +933,16 @@ const WORK_GROUPS = [
   { label: '📝 その他', items: ['その他農作業','その他出荷','その他'] },
 ];
 
-const FIELDS = ['太田1','太田2','太田3','太田4','太田5','太田6','太田ハウス','岩名1','岩名2','岩名3','岩名4','（なし）'];
+// 区画の選択肢。起動時に getMasters の fields で上書きする（initMasters内）。
+// 2026-08-30: ここは固定配列で、しかも実際の区画マスタとずれていた
+// （ハウス1/2が「太田ハウス」1つに潰れ、寺崎が欠落）。
+// さらに送信時は名前だけを送っており、GAS側の FIELD_NAME_MAP が
+// 太田1〜6を OTAH1〜6（実際はハウス）へ誤変換していた。
+// 作業者ID(2026-08-17)と同じく、コードを直接送る方式へ変更する。
+let FIELDS      = ['太田1','太田2','太田3','太田4','太田5','太田6',
+                   'ハウス1','ハウス2','岩名1','岩名2','岩名3','岩名4','寺崎','（なし）'];
+let FIELD_CODES = ['OTA1','OTA2','OTA3','OTA4','OTA5','OTA6',
+                   'OTAH1','OTAH2','IWA1','IWA2','IWA3','IWA4','TERA1',''];
 
 // 農薬マスタ（フォールバック12品目）
 const PEST_FALLBACK = [
@@ -1025,6 +1034,13 @@ async function init() {
       if (data.dests      && data.dests.length > 0)      DESTS      = data.dests;
       else DESTS = DESTS_DEFAULT;
       if (data.pesticides && data.pesticides.length > 0) PESTICIDES = data.pesticides;
+      // 区画マスタ（getMastersは以前からfieldsを返していたが、LIFFが使っていなかった）
+      if (data.fields && data.fields.length > 0) {
+        FIELDS      = data.fields.map(f => String(f.name || f.cd)).concat('（なし）');
+        FIELD_CODES = data.fields.map(f => String(f.cd)).concat('');
+        FIELD_CODE_TO_NAME = {};
+        data.fields.forEach(f => { FIELD_CODE_TO_NAME[String(f.cd)] = String(f.name || f.cd); });
+      }
     } else {
       throw new Error(data.message || 'API error');
     }
@@ -1464,10 +1480,16 @@ function checkDraft() {
 // 修正そのものは「このモーダルを見ながら、下のフォームに正しい内容を入力し直して
 // 同じ日付で送信する」ことで行う。work/salesは元々「同じ日付なら上書き」という
 // 挙動を持っており、pesticideも2026-08-17にGAS側を同じ挙動へ揃えた。
-const FIELD_CODE_TO_NAME = {
-  OTAH1:'太田1', OTAH2:'太田2', OTAH3:'太田3', OTAH4:'太田4',
-  OTAH5:'太田5', OTAH6:'太田6', OTAH:'太田ハウス',
+// 区画CD→区画名。起動時に getMasters の fields で上書きする（initMasters内）。
+// 2026-08-30: ここに固定表を持っていたが実際の区画マスタとずれていた
+// （OTAH1〜6→太田1〜6としていたが、正しくは OTAH1/2=ハウス1/2、太田は OTA1〜6。
+//   OTA1〜6 と TERA1 は表に無く、コードのまま表示されていた）。
+// マスタを2箇所に持つのをやめ、以下はGASから取れなかった場合の最小フォールバックとする。
+let FIELD_CODE_TO_NAME = {
+  OTA1:'太田1', OTA2:'太田2', OTA3:'太田3', OTA4:'太田4', OTA5:'太田5', OTA6:'太田6',
+  OTAH1:'ハウス1', OTAH2:'ハウス2',
   IWA1:'岩名1', IWA2:'岩名2', IWA3:'岩名3', IWA4:'岩名4',
+  TERA1:'寺崎',
 };
 const RECALL_HIDE_KEYS = [
   '日報ID','記録ID','出荷ID','No','スケジュールID','タイムスタンプ',
@@ -1509,6 +1531,120 @@ function recallBeautify(key, val) {
   return String(val);
 }
 
+// ------------------------------------------------------------
+// 行単位の修正（2026-08-30〜）
+// ------------------------------------------------------------
+// それまでは読み取り専用のプレビューで、修正は「フォームに全部入力し直して
+// 同じ日付で再送信＝上書き」しかできなかった。
+// GAS側の type:'edit' もスタブで何も保存していなかったため、ここで行単位の
+// 修正に対応する。防除実績DBは行を識別する列を持たないため対象外。
+const RECALL_EDITABLE = {
+  work: [
+    { key: '区画CD',       label: '区画',   kind: 'field'  },
+    { key: '作物CD',       label: '作物',   kind: 'crop'   },
+    { key: '作業時間(分)', label: '時間(分)', kind: 'number' },
+    { key: '備考',         label: 'メモ',   kind: 'text', alt: '作業名（テキスト）' },
+  ],
+  sale: [
+    { key: '数量',       label: '数量',     kind: 'number' },
+    { key: '単位',       label: '単位',     kind: 'text'   },
+    { key: 'KG',         label: 'KG',       kind: 'number' },
+    { key: '単価',       label: '単価',     kind: 'number' },
+    { key: '内容量(g)',  label: '内容量(g)', kind: 'number' },
+    { key: '備考',       label: 'メモ',     kind: 'text', alt: 'メモ' },
+  ],
+};
+
+let RECALL_STATE = { type: null, date: null, rows: [] };
+
+function recallRecordId(row) {
+  return String(row['レコードID'] || row['出荷ID'] || '').trim();
+}
+
+// 本番とfixtureで列名が違う（備考/メモ、備考/作業名（テキスト））。行に存在する方を使う。
+function recallActualKey(row, def) {
+  if (Object.prototype.hasOwnProperty.call(row, def.key)) return def.key;
+  if (def.alt && Object.prototype.hasOwnProperty.call(row, def.alt)) return def.alt;
+  return null;
+}
+
+function recallEditFormHtml(type, row, idx) {
+  const defs = RECALL_EDITABLE[type] || [];
+  const inputs = defs.map(def => {
+    const key = recallActualKey(row, def);
+    if (!key) return '';
+    const val = row[key] === null || row[key] === undefined ? '' : String(row[key]);
+    const id  = `redit_${idx}_${def.key}`;
+    let ctrl;
+    if (def.kind === 'field') {
+      ctrl = `<select id="${id}">` + FIELDS.map((f, i) =>
+        `<option value="${escapeHtml(FIELD_CODES[i] || '')}"${String(FIELD_CODES[i]) === val ? ' selected' : ''}>${escapeHtml(f)}</option>`
+      ).join('') + '</select>';
+    } else if (def.kind === 'crop') {
+      ctrl = `<select id="${id}">` + CROPS.map(c =>
+        `<option value="${escapeHtml(c.cd)}"${String(c.cd) === val ? ' selected' : ''}>${escapeHtml(c.name)}</option>`
+      ).join('') + '</select>';
+    } else {
+      const it = def.kind === 'number' ? 'number' : 'text';
+      ctrl = `<input type="${it}" id="${id}" value="${escapeHtml(val)}">`;
+    }
+    return `<div class="recall-row"><span class="k">${escapeHtml(def.label)}</span><span class="v">${ctrl}</span></div>`;
+  }).join('');
+
+  return `<div id="reditbox_${idx}" class="hidden" style="margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)">
+    ${inputs}
+    <button class="recall-btn" style="margin-top:8px" onclick="saveRecallEdit(${idx})">この内容で保存</button>
+  </div>`;
+}
+
+function toggleRecallEdit(idx) {
+  const box = document.getElementById(`reditbox_${idx}`);
+  if (box) box.classList.toggle('hidden');
+}
+
+async function saveRecallEdit(idx) {
+  const type = RECALL_STATE.type;
+  const row  = RECALL_STATE.rows[idx];
+  if (!row) return;
+  const recordId = recallRecordId(row);
+  if (!recordId) { showToast('❌ この行は識別できないため修正できません'); return; }
+
+  const patch = {};
+  (RECALL_EDITABLE[type] || []).forEach(def => {
+    const key = recallActualKey(row, def);
+    if (!key) return;
+    const el = document.getElementById(`redit_${idx}_${def.key}`);
+    if (!el) return;
+    const before = row[key] === null || row[key] === undefined ? '' : String(row[key]);
+    if (String(el.value) !== before) patch[key] = el.value;
+  });
+
+  if (!Object.keys(patch).length) { showToast('変更がありません'); return; }
+
+  // userId は init() 内のローカル変数なので、submit() と同じくここで取り直す
+  let userId = 'LIFF';
+  try { userId = (await liff.getProfile()).userId; } catch(e) {}
+
+  try {
+    await fetch(GAS_URL, {
+      method: 'POST', mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        type: 'edit', log_type: type, record_id: recordId,
+        patch, worker_id: (document.getElementById('pestWorker')?.value || ''),
+        user_id: userId, input_method: 'LIFF',
+      }),
+    });
+  } catch (e) {
+    showToast('❌ 送信に失敗しました: ' + e.message);
+    return;
+  }
+
+  // no-cors では応答を読めないため、保存後に読み直して結果を目で確認できるようにする。
+  showToast('💾 保存しました。内容を読み直します');
+  setTimeout(() => recallDay(type), 1200);
+}
+
 function recallRowsHtml(obj) {
   return Object.entries(obj || {})
     .filter(([k]) => !RECALL_HIDE_KEYS.includes(k))
@@ -1546,19 +1682,30 @@ async function recallDay(type) {
       return;
     }
 
-    noteEl.textContent = 'これは既に保存されている内容です。修正する場合は、下のフォームに正しい内容を入力し直して送信してください。同じ日付で送信すると、この記録が新しい内容に置き換わります。';
+    const editable = !!RECALL_EDITABLE[type];
+    noteEl.textContent = editable
+      ? '保存済みの内容です。「この行を修正」から必要な項目だけ直せます。全部入れ替えたい場合は、下のフォームに入力し直して同じ日付で送信してください。'
+      : '保存済みの内容です。防除実績は行単位の修正に対応していないため、下のフォームに入力し直して同じ実施日で送信すると置き換わります。';
+
+    const rows = type === 'work' ? (log.work_rows || []) : (log.rows || []);
+    RECALL_STATE = { type, date: dateVal, rows };
+
+    const blockHtml = (row, i, icon) => {
+      const rid = recallRecordId(row);
+      const btn = (editable && rid)
+        ? `<button class="recall-btn" style="margin-top:6px" onclick="toggleRecallEdit(${i})">✏️ この行を修正</button>${recallEditFormHtml(type, row, i)}`
+        : '';
+      return `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">${icon} ${i + 1}</div>${recallRowsHtml(row)}${btn}</div>`;
+    };
 
     if (type === 'work') {
       let html = `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">📋 基本情報</div>${recallRowsHtml(log.header)}</div>`;
-      (log.work_rows || []).forEach((row, i) => {
-        html += `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">👷 作業ログ ${i + 1}</div>${recallRowsHtml(row)}</div>`;
-      });
+      html += rows.map((row, i) => blockHtml(row, i, '👷 作業ログ')).join('');
       bodyEl.innerHTML = html;
     } else {
-      const rows = log.rows || [];
       const icon = type === 'sale' ? '🚚 出荷' : '🌿 防除';
       bodyEl.innerHTML = rows.length
-        ? rows.map((row, i) => `<div class="recall-block"><div style="font-weight:700;font-size:12px;color:var(--green);margin-bottom:4px">${icon} ${i + 1}</div>${recallRowsHtml(row)}</div>`).join('')
+        ? rows.map((row, i) => blockHtml(row, i, icon)).join('')
         : '<div class="recall-row"><span class="k">記録なし</span></div>';
     }
   } catch (e) {
@@ -1597,7 +1744,8 @@ async function submit() {
         // worker: 後方互換・ログ確認用に氏名も併送。
         worker_id: WORKERS[e.w] ? (WORKERS[e.w].id || '') : '',
         worker: WORKERS[e.w] ? WORKERS[e.w].name : '—',
-        field:  FIELDS[e.f],
+        field:    FIELDS[e.f],
+        field_cd: FIELD_CODES[e.f] || '',
         crop:   CROPS[e.c]  ? CROPS[e.c].name   : '—',
         work:   e.k,
         hours:  e.h,
@@ -1648,10 +1796,12 @@ async function submit() {
         return { cd: p.cd || cd, name: p.name || cd, kubun: p.kubun || '', dilution: p.dilution || '' };
       });
 
-      const targetFields = FIELDS.filter(f => f !== '（なし）');
-      const fields = targetFields.map((f, i) => {
+      // 2026-08-30: ここは cd に区画「名」を入れており、防除実績DBの区画CD列に
+      // 名前が書かれていた。FIELD_CODES から正しいCDを引く。
+      const targetIdx = FIELDS.map((f, i) => i).filter(i => FIELDS[i] !== '（なし）');
+      const fields = targetIdx.map((fi, i) => {
         const vol = parseFloat(document.getElementById(`fv${i}`)?.value) || 0;
-        return { cd: f, name: f, volume_l: vol, area_a: 0 };
+        return { cd: FIELD_CODES[fi] || FIELDS[fi], name: FIELDS[fi], volume_l: vol, area_a: 0 };
       }).filter(f => f.volume_l > 0);
 
       const workerSel = document.getElementById('pestWorker');
