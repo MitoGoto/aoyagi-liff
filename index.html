@@ -1019,20 +1019,26 @@ async function init() {
   document.getElementById('headerDate').textContent =
     `${today.getMonth()+1}/${today.getDate()}(${['日','月','火','水','木','金','土'][today.getDay()]})`;
 
-  // GASからマスタ取得（タイムアウト5秒）
+  // GASからマスタ取得（タイムアウト10秒）
+  // 5秒だと本番の応答(実測3.5〜5.4秒、大半がGASのリダイレクト)が間に合わないことがあった。
   try {
     const ctrl = new AbortController();
-    const tid  = setTimeout(() => ctrl.abort(), 5000);
+    const tid  = setTimeout(() => ctrl.abort(), 10000);
     const res  = await fetch(GAS_URL + '?action=getMasters', { signal: ctrl.signal });
     clearTimeout(tid);
     const data = await res.json();
-    if (data.status === 'ok') {
-      if (data.workers    && data.workers.length > 0)    WORKERS    = data.workers;
-      else WORKERS = WORKERS_DEFAULT;
-      if (data.crops      && data.crops.length > 0)      CROPS      = data.crops;
-      else CROPS = CROPS_DEFAULT;
-      if (data.dests      && data.dests.length > 0)      DESTS      = data.dests;
-      else DESTS = DESTS_DEFAULT;
+    // 2026-10-09まで GAS が status を返しておらず、ここは常にフォールバックだった。
+    // 古いデプロイにも備え、status が無くても配列が揃っていれば受け入れる。
+    if (data.status === 'ok' || Array.isArray(data.fields)) {
+      // 作業者・作物・販売先は当面フォールバックを使い続ける。本番マスタ側が
+      // 古い（作業者は離職者2名を含みW013〜W018の6名が無い、販売先は名称が
+      // GASのDEST_MAPと不一致でOT扱いになる、作物は「そのほか」等でCDが引けない）。
+      // 加えて下書きは選択肢の添字(e.w, e.c, sales[i])で保存しているため、
+      // 並びが変わると復元時に別の人・別の販売先へずれる。マスタを整えてから切り替える。
+      WORKERS = WORKERS_DEFAULT;
+      CROPS   = CROPS_DEFAULT;
+      DESTS   = DESTS_DEFAULT;
+      // 農薬はCDで選択・保存しており、本番マスタとCD・並びが一致している。
       if (data.pesticides && data.pesticides.length > 0) PESTICIDES = data.pesticides;
       // 区画マスタ（getMastersは以前からfieldsを返していたが、LIFFが使っていなかった）
       if (data.fields && data.fields.length > 0) {
